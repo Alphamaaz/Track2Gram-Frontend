@@ -157,6 +157,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
           .ant-menu-item-selected {
             background-color: rgba(255, 255, 255, 0.2) !important;
             color: #fff !important;
+            font-weight: 700 !important;
           }
           .ant-menu-item:hover, .ant-menu-submenu-title:hover {
             color: #fff !important;
@@ -164,6 +165,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
           }
           .ant-menu-item a, .ant-menu-submenu-title {
             color: #ffffff !important;
+            font-weight: 700 !important;
           }
           .ant-menu-item .anticon, .ant-menu-submenu-title .anticon {
             font-size: 18px !important;

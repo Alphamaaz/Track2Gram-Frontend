@@ -44,3 +44,21 @@ body {
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* Global Heading Styles - Professional Bold */
+h1.ant-typography,
+h2.ant-typography,
+h3.ant-typography,
+h4.ant-typography,
+h5.ant-typography,
+h6.ant-typography,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 700 !important;
+  color: #1e293b;
+  /* Slate-800 for professional look */
+}
