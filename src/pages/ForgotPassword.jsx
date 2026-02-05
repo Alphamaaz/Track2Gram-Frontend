@@ -1,6 +1,7 @@
 import { Form, Input, Button, Typography, Card } from 'antd'
 import { Link } from 'react-router-dom'
 import { MailOutlined, ArrowLeftOutlined } from '@ant-design/icons'
+import logo from '../assets/tyy 1.svg'
 
 const { Title, Text } = Typography
 
@@ -10,20 +11,14 @@ export const ForgotPassword = () => {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyItems: 'center', background: '#F8FAFC', padding: '24px' }}>
+    <div className="forgot-password-container">
       <Card
-        style={{
-          maxWidth: '500px',
-          width: '100%',
-          borderRadius: '24px',
-          margin: '0 auto',
-          boxShadow: '0 10px 40px rgba(0,0,0,0.05)',
-          padding: '24px'
-        }}
+        className="forgot-password-card"
         variant="borderless"
       >
-        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <Title level={2} style={{ margin: 0, fontWeight: 800 }}>Forgot password?</Title>
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <img src={logo} alt="Track Bridge" style={{ height: '48px', marginBottom: '24px' }} />
+          <Title level={2} style={{ margin: 0, fontWeight: 800, background: 'linear-gradient(45deg, #2563EB, #3B82F6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Forgot password?</Title>
           <Text type="secondary" style={{ display: 'block', marginTop: '12px' }}>
             Enter the email associated with your account and we'll send you instructions to reset your password.
           </Text>
@@ -47,7 +42,7 @@ export const ForgotPassword = () => {
             <Input
               prefix={<MailOutlined style={{ color: 'rgba(0,0,0,.25)' }} />}
               placeholder="Enter your email"
-              style={{ borderRadius: '12px', padding: '12px 16px' }}
+              style={{ borderRadius: '12px', padding: '12px 16px', background: '#F8FAFC', border: '1px solid #E2E8F0' }}
             />
           </Form.Item>
 
@@ -56,7 +51,7 @@ export const ForgotPassword = () => {
               type="primary"
               htmlType="submit"
               block
-              style={{ height: '54px', borderRadius: '12px', fontWeight: 'bold', fontSize: '16px' }}
+              style={{ height: '54px', borderRadius: '12px', fontWeight: 'bold', fontSize: '16px', background: 'linear-gradient(to right, #2563EB, #3B82F6)', border: 'none', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)' }}
             >
               Send Reset Link
             </Button>
@@ -69,6 +64,37 @@ export const ForgotPassword = () => {
           </div>
         </Form>
       </Card>
+
+      <style>
+        {`
+          .forgot-password-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #F0F4F8;
+            padding: 24px;
+            background-image: 
+              radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.1) 0px, transparent 50%),
+              radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.1) 0px, transparent 50%);
+          }
+          .forgot-password-card {
+            max-width: 500px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            border-radius: 32px;
+            margin: 0 auto;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            padding: 24px;
+          }
+          /* Override Antd Card padding if needed */
+          .forgot-password-card .ant-card-body {
+            padding: 24px;
+          }
+        `}
+      </style>
     </div>
   )
 }
