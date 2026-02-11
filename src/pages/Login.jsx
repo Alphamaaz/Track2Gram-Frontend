@@ -1,17 +1,37 @@
-import { Form, Input, Button, Checkbox, Divider, Typography, Row, Col } from 'antd'
+import { Form, Input, Button, Checkbox, Divider, Typography, Row, Col, message } from 'antd'
 import { Link, useNavigate } from 'react-router-dom'
-import { GoogleOutlined } from '@ant-design/icons'
 import loginImage from '../assets/login.png'
 import logo from '../assets/tyy 1.svg'
+import authService from '../services/auth'
+import { useState } from 'react'
 
 const { Title, Text } = Typography
 
 export const Login = () => {
   const navigate = useNavigate()
+  const [loading, setLoading] = useState(false)
 
-  const onFinish = (values) => {
-    console.log('Login values:', values)
-    navigate('/dashboard')
+  const onFinish = async (values) => {
+    setLoading(true)
+    try {
+      const response = await authService.login({
+        email: values.email,
+        password: values.password
+      })
+
+      // Store the token and user info
+      localStorage.setItem('token', response.token)
+      localStorage.setItem('user', JSON.stringify(response.user))
+
+      message.success('Login successful!')
+      navigate('/dashboard')
+    } catch (error) {
+      console.error('Login error details:', error)
+      const errorMsg = error.message || error.error || (typeof error === 'string' ? error : JSON.stringify(error))
+      message.error(errorMsg)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -34,6 +54,7 @@ export const Login = () => {
             layout="vertical"
             size="large"
             autoComplete="off"
+            disabled={loading}
           >
             <Form.Item
               name="email"
@@ -63,23 +84,12 @@ export const Login = () => {
                 type="primary"
                 htmlType="submit"
                 block
+                loading={loading}
                 style={{ height: '54px', borderRadius: '12px', fontWeight: 'bold', fontSize: '16px', background: 'linear-gradient(to right, #2563EB, #3B82F6)', border: 'none', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)' }}
               >
                 Log in
               </Button>
             </Form.Item>
-
-            <Divider plain style={{ margin: '32px 0' }}>
-              <Text type="secondary" style={{ fontSize: '12px' }}>Or continue with</Text>
-            </Divider>
-
-            <Button
-              block
-              icon={<GoogleOutlined />}
-              style={{ height: '54px', borderRadius: '12px', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            >
-              Login with Google
-            </Button>
 
             <div style={{ textAlign: 'center', marginTop: '32px' }}>
               <Text type="secondary">Don't have an account? </Text>

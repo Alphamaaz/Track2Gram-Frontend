@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Layout, Button, List, Card, Input, Modal, Space, Typography, Upload, message, Radio, Drawer } from 'antd';
+import { Layout, Button, List, Card, Input, Modal, Space, Typography, Upload, App, Radio, Drawer } from 'antd';
 import {
     EditOutlined,
     DeleteOutlined,
@@ -17,27 +17,16 @@ const { TextArea } = Input;
 const { Title, Text } = Typography;
 const { confirm } = Modal;
 
-const LandingBuilder = ({ onHtmlChange }) => {
-    const [blocks, setBlocks] = useState(() => {
-        const saved = localStorage.getItem('landing-page-blocks');
-        if (saved) {
-            try {
-                return JSON.parse(saved);
-            } catch (e) {
-                console.error('Failed to parse saved blocks:', e);
-                return [];
-            }
-        }
-        return [];
-    });
+const LandingBuilder = ({ onHtmlChange, initialBlocks = [] }) => {
+    const { message } = App.useApp();
+    const [blocks, setBlocks] = useState(initialBlocks);
     const [editingBlock, setEditingBlock] = useState(null);
     const [editForm, setEditForm] = useState({});
     const [isMobile, setIsMobile] = useState(false);
     const [drawerVisible, setDrawerVisible] = useState(false);
     const [inlineEditing, setInlineEditing] = useState(null); // { blockId, field: 'title' | 'paragraph' }
-    const idCounterRef = useRef(blocks && blocks.length > 0 ? Math.max(...blocks.map(b => b.id || 0)) + 1 : 1);
+    // idCounterRef removed as it's no longer needed without addBlock
     const inputRef = useRef(null);
-
 
 
     // Check screen size for responsive design
@@ -115,36 +104,14 @@ const LandingBuilder = ({ onHtmlChange }) => {
 </html>`;
     };
 
-    // Save to localStorage and generate HTML on every change
+    // Generate HTML on every change
     useEffect(() => {
-        localStorage.setItem('landing-page-blocks', JSON.stringify(blocks));
         if (onHtmlChange) {
-            onHtmlChange(generateHtml(blocks));
+            onHtmlChange(generateHtml(blocks), blocks);
         }
     }, [blocks, onHtmlChange]);
 
-    const addBlock = (type) => {
-        const newBlock = {
-            id: ++idCounterRef.current,
-            type,
-            content: getDefaultContent(type)
-        };
-        setBlocks(prev => [...prev, newBlock]);
-        message.success(`${type === 'text' ? 'Text Block' : type === 'image' ? 'Image' : 'Subscribe'} added!`);
-    };
-
-    const getDefaultContent = (type) => {
-        switch (type) {
-            case 'text':
-                return { title: 'Your Title Here', paragraph: 'Your paragraph text goes here.', align: 'left' };
-            case 'image':
-                return { src: 'https://placehold.co/600x400?text=Upload+Image', alt: 'Placeholder Image' };
-            case 'subscribe':
-                return { title: 'Join Our Community', description: 'Subscribe to get the latest updates.', buttonText: 'Subscribe Now', link: '#' };
-            default:
-                return {};
-        }
-    };
+    // addBlock removed as requested (hide "Add Components")
 
     const startEdit = (block) => {
         setEditingBlock(block);
@@ -505,13 +472,6 @@ const LandingBuilder = ({ onHtmlChange }) => {
         return (
             <div style={{ height: '100%', background: '#f5f5f5', overflowY: 'auto' }}>
                 <div style={{ padding: '16px', background: '#fff', borderBottom: '1px solid #f0f0f0' }}>
-                    <Title level={5} style={{ marginBottom: '12px' }}>Add Components</Title>
-                    <Space style={{ width: '100%', marginBottom: '16px' }} direction="vertical">
-                        <Button icon={<FontSizeOutlined />} onClick={() => addBlock('text')} block>Text Block</Button>
-                        <Button icon={<PictureOutlined />} onClick={() => addBlock('image')} block>Image</Button>
-                        <Button icon={<SendOutlined />} onClick={() => addBlock('subscribe')} block>Subscribe</Button>
-                    </Space>
-
                     <Title level={5} style={{ marginBottom: '12px' }}>Components ({blocks.length})</Title>
                     {blocks.length === 0 ? (
                         <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
@@ -603,17 +563,10 @@ const LandingBuilder = ({ onHtmlChange }) => {
         <Layout style={{ height: '100%', background: '#fff' }}>
             <Sider width={editingBlock ? 280 : 320} theme="light" style={{ borderRight: '1px solid #f0f0f0', overflowY: 'auto' }}>
                 <div style={{ padding: '20px' }}>
-                    <Title level={5} style={{ marginBottom: '16px' }}>Add Components</Title>
-                    <Space direction="vertical" style={{ width: '100%', marginBottom: '24px' }}>
-                        <Button icon={<FontSizeOutlined />} onClick={() => addBlock('text')} block>Text Block</Button>
-                        <Button icon={<PictureOutlined />} onClick={() => addBlock('image')} block>Image</Button>
-                        <Button icon={<SendOutlined />} onClick={() => addBlock('subscribe')} block>Subscribe</Button>
-                    </Space>
-
                     <Title level={5} style={{ marginBottom: '16px' }}>Components ({blocks.length})</Title>
                     {blocks.length === 0 ? (
                         <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
-                            <Text type="secondary">No components yet. Click a button above to add one!</Text>
+                            <Text type="secondary">No components yet.</Text>
                         </div>
                     ) : (
                         <List

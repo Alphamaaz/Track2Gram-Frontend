@@ -1,48 +1,110 @@
-import React, { useState } from 'react';
-import { Table, Tag, Space, Button, Card, Typography, Input, Select, Modal, Form, message, Popconfirm, Avatar } from 'antd';
-import { UserOutlined, EditOutlined, DeleteOutlined, UserAddOutlined, SearchOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Table, Tag, Space, Button, Card, Typography, Input, Select, Modal, Form, App, Popconfirm, Avatar, Switch } from 'antd';
+import { UserOutlined, UserAddOutlined, SearchOutlined } from '@ant-design/icons';
+import authService from '../services/auth';
 
 const { Title } = Typography;
 const { Option } = Select;
 
 const RoleManagement = () => {
+    const { message } = App.useApp();
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [form] = Form.useForm();
     const [editingUser, setEditingUser] = useState(null);
     const [searchText, setSearchText] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [users, setUsers] = useState([]);
+    const [currentUser, setCurrentUser] = useState(null);
 
-    const [users, setUsers] = useState([
-        {
-            key: '1',
-            name: 'Sabreen',
-            email: 'sabreen@example.com',
-            role: 'Admin',
-            status: 'Active',
-        },
-        {
-            key: '2',
-            name: 'John Doe',
-            email: 'john@example.com',
-            role: 'Manager',
-            status: 'Active',
-        },
-        {
-            key: '3',
-            name: 'Alice Smith',
-            email: 'alice@example.com',
-            role: 'Editor',
-            status: 'Inactive',
-        },
-    ]);
+
+    const fetchCurrentUser = useCallback(async () => {
+        try {
+            const data = await authService.getProfile();
+            // Normalize: Backend might return { user: {...} } or {...}
+            const normalized = data?.user || data;
+            setCurrentUser(normalized);
+            return normalized;
+        } catch (error) {
+            console.error('Failed to fetch profile:', error);
+            return null;
+        }
+    }, []);
+
+    const fetchUsers = useCallback(async (pUser) => {
+        setLoading(true);
+        try {
+            const data = await authService.getUsers();
+            let usersList = Array.isArray(data) ? data : (data.users || []);
+
+            // Filter out empty or invalid user objects
+            usersList = usersList.filter(u => u && (u.id || u._id));
+
+            let mappedUsers = usersList.map(user => {
+                const id = user.id || user._id;
+                return {
+                    ...user,
+                    key: id,
+                    id: id,
+                    status: user.active === false || user.disabled ? 'Inactive' : 'Active'
+                };
+            });
+
+            // Handle current user inclusion
+            if (pUser) {
+                const pId = pUser.id || pUser._id;
+                const alreadyInList = mappedUsers.some(u => u.key === pId);
+
+                if (pId && !alreadyInList) {
+                    mappedUsers.unshift({
+                        ...pUser,
+                        key: pId,
+                        id: pId,
+                        status: pUser.active === false || pUser.disabled ? 'Inactive' : 'Active'
+                    });
+                }
+            }
+
+            setUsers(mappedUsers);
+        } catch (error) {
+            console.error('Failed to fetch users:', error);
+
+            // If 403 (Insufficient role), fallback to showing only the current user
+            if (pUser) {
+                const pId = pUser.id || pUser._id;
+                const selfUser = {
+                    ...pUser,
+                    key: pId || 'self',
+                    id: pId,
+                    status: pUser.active === false || pUser.disabled ? 'Inactive' : 'Active'
+                };
+                setUsers([selfUser]);
+            } else {
+                message.error('Unable to retrieve workspace user list. Please check your permissions.');
+            }
+        } finally {
+            setLoading(false);
+        }
+    }, [message]);
+
+    useEffect(() => {
+        const init = async () => {
+            const user = await fetchCurrentUser();
+            fetchUsers(user);
+        };
+        init();
+    }, [fetchCurrentUser, fetchUsers]);
 
     const showModal = (user = null) => {
         setEditingUser(user);
-        if (user) {
-            form.setFieldsValue(user);
-        } else {
-            form.resetFields();
-        }
         setIsModalVisible(true);
+        // Use setTimeout to ensure the Modal and Form are rendered before accessing the form instance
+        setTimeout(() => {
+            if (user) {
+                form.setFieldsValue(user);
+            } else {
+                form.resetFields();
+            }
+        }, 0);
     };
 
     const handleCancel = () => {
@@ -53,39 +115,69 @@ const RoleManagement = () => {
     const handleSave = async () => {
         try {
             const values = await form.validateFields();
+            setLoading(true);
             if (editingUser) {
-                setUsers(users.map(u => u.key === editingUser.key ? { ...u, ...values } : u));
-                message.success('User updated successfully');
+                message.info('Update API not specified, using Invite pattern');
+                await authService.inviteUser({
+                    email: values.email,
+                    role: values.role.toLowerCase()
+                });
+                message.success('User invite sent/updated successfully');
             } else {
-                const newUser = {
-                    key: (users.length + 1).toString(),
-                    ...values,
-                    status: 'Active',
-                };
-                setUsers([...users, newUser]);
-                message.success('User added successfully');
+                await authService.inviteUser({
+                    email: values.email,
+                    role: values.role.toLowerCase()
+                });
+                message.success('Invitation sent successfully');
             }
             setIsModalVisible(false);
             setEditingUser(null);
+            fetchUsers();
         } catch (error) {
-            console.error('Validation failed:', error);
+            console.error('Action failed:', error);
+            message.error(error.message || 'Action failed');
+        } finally {
+            setLoading(false);
         }
     };
 
-    const handleDelete = (key) => {
-        setUsers(users.filter(u => u.key !== key));
-        message.success('User deleted successfully');
+    const handleToggleStatus = async (record) => {
+        try {
+            setLoading(true);
+            await authService.toggleDisableUser(record.id || record._id || record.key);
+            message.success('User status toggled successfully');
+            fetchUsers();
+        } catch (error) {
+            console.error('Toggle failed:', error);
+            message.error(error.message || 'Failed to toggle user status');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDelete = async (key) => {
+        try {
+            setLoading(true);
+            await authService.deleteUser(key);
+            message.success('User deleted successfully');
+            fetchUsers();
+        } catch (error) {
+            console.error('Delete failed:', error);
+            message.error(error.message || 'Failed to delete user');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const columns = [
         {
-            title: 'Name',
+            title: 'User',
             dataIndex: 'name',
             key: 'name',
-            render: (text) => (
+            render: (text, record) => (
                 <Space>
                     <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: '#f1f5f9', color: '#3b82f6' }} />
-                    <span style={{ fontWeight: 500 }}>{text}</span>
+                    <span style={{ fontWeight: 500 }}>{text || record.email}</span>
                 </Space>
             ),
         },
@@ -98,55 +190,77 @@ const RoleManagement = () => {
             title: 'Role',
             dataIndex: 'role',
             key: 'role',
-            render: (role) => {
-                let color = 'blue';
-                if (role === 'Admin') color = 'gold';
-                if (role === 'Editor') color = 'green';
-                return (
-                    <Tag color={color} style={{ borderRadius: '4px', textTransform: 'uppercase', fontWeight: 600, fontSize: '10px' }}>
-                        {role}
-                    </Tag>
-                );
-            },
+            render: (role) => role ? (
+                <Tag color="blue" style={{ borderRadius: '4px', textTransform: 'uppercase', fontWeight: 600, fontSize: '10px' }}>
+                    {role}
+                </Tag>
+            ) : null,
         },
         {
-            title: 'Status',
+            title: 'Active',
             dataIndex: 'status',
             key: 'status',
-            render: (status) => (
-                <Tag color={status === 'Active' ? 'success' : 'error'} style={{ borderRadius: '12px' }}>
-                    {status}
-                </Tag>
-            ),
+            render: (status, record) => {
+                const isOwner = record.role?.toLowerCase() === 'owner';
+                const isSelf = record.key === currentUser?.id || record.key === currentUser?._id;
+
+                // Allow toggle IF the user is currently Inactive (to activate them)
+                // Disable toggle IF the user is Active AND (Owner or Self) to prevent deactivation
+                const cannotDeactivate = status === 'Active' && (isOwner || isSelf);
+
+                return (
+                    <Switch
+                        checked={status === 'Active'}
+                        onChange={() => handleToggleStatus(record)}
+                        disabled={cannotDeactivate}
+                        style={{ backgroundColor: status === 'Active' ? (cannotDeactivate ? '#94a3b8' : '#52c41a') : undefined }}
+                    />
+                );
+            }
         },
         {
             title: 'Action',
             key: 'action',
-            render: (_, record) => (
-                <Space size="middle">
-                    <Button
-                        type="text"
-                        icon={<EditOutlined style={{ color: '#3b82f6' }} />}
-                        onClick={() => showModal(record)}
-                    />
-                    <Popconfirm
-                        title="Are you sure to delete this user?"
-                        onConfirm={() => handleDelete(record.key)}
-                        okText="Yes"
-                        cancelText="No"
-                    >
-                        <Button type="text" icon={<DeleteOutlined style={{ color: '#ef4444' }} />} />
-                    </Popconfirm>
-                </Space>
-            ),
+            render: (_, record) => {
+                const isOwner = record.role?.toLowerCase() === 'owner';
+                const isSelf = record.key === currentUser?.id || record.key === currentUser?._id;
+
+                if (isOwner || isSelf) return null;
+
+                return (
+                    <Space size="middle">
+                        <Popconfirm
+                            title="Are you sure to delete this user?"
+                            onConfirm={() => handleDelete(record.key)}
+                            okText="Yes"
+                            cancelText="No"
+                        >
+                            <Button type="link" danger style={{ padding: 0 }}>
+                                Remove
+                            </Button>
+                        </Popconfirm>
+                    </Space>
+                );
+            }
         },
     ];
 
-
     const filteredUsers = users.filter(user =>
-        user.name.toLowerCase().includes(searchText.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchText.toLowerCase())
+        (user.name?.toLowerCase() || '').includes(searchText.toLowerCase()) ||
+        (user.email?.toLowerCase() || '').includes(searchText.toLowerCase())
     );
+
+    const userRole = currentUser?.role?.toLowerCase();
+    const canAccess = userRole === 'owner' || userRole === 'admin';
+
+    if (currentUser && !canAccess) {
+        return (
+            <div style={{ padding: 'clamp(8px, 3vw, 32px)', textAlign: 'center' }}>
+                <Title level={3}>Access Denied</Title>
+                <Typography.Text type="secondary">You do not have permission to view this page.</Typography.Text>
+            </div>
+        );
+    }
 
     return (
         <div style={{ padding: 'clamp(8px, 3vw, 32px)' }}>
@@ -178,6 +292,7 @@ const RoleManagement = () => {
                     columns={columns}
                     dataSource={filteredUsers}
                     pagination={false}
+                    loading={loading}
                     style={{ borderRadius: '8px' }}
                     scroll={{ x: 800 }}
                 />
@@ -191,15 +306,11 @@ const RoleManagement = () => {
                 okText={editingUser ? "Update" : "Add"}
                 centered
                 style={{ borderRadius: '12px' }}
+                okButtonProps={{ loading }}
+                forceRender
+                destroyOnHidden
             >
                 <Form form={form} layout="vertical" style={{ marginTop: '16px' }}>
-                    <Form.Item
-                        name="name"
-                        label="Full Name"
-                        rules={[{ required: true, message: 'Please enter full name' }]}
-                    >
-                        <Input placeholder="John Doe" />
-                    </Form.Item>
                     <Form.Item
                         name="email"
                         label="Email"
@@ -216,8 +327,8 @@ const RoleManagement = () => {
                         rules={[{ required: true, message: 'Please select a role' }]}
                     >
                         <Select placeholder="Select a role">
+                            <Option value="Owner">Owner</Option>
                             <Option value="Admin">Admin</Option>
-                            <Option value="Manager">Manager</Option>
                             <Option value="Editor">Editor</Option>
                             <Option value="Viewer">Viewer</Option>
                         </Select>

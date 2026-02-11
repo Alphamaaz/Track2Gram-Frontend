@@ -13,6 +13,7 @@ const { Header: AntHeader } = Layout
 
 const Header = ({ collapsed, onToggle }) => {
   const [profileVisible, setProfileVisible] = useState(false)
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   return (
     <>
@@ -47,12 +48,21 @@ const Header = ({ collapsed, onToggle }) => {
           </div>
         </div>
 
-        <Space size="middle">
+        <Space size="middle" onClick={() => setProfileVisible(true)} style={{ cursor: 'pointer' }}>
+          {user.name && (
+            <span style={{
+              fontWeight: 600,
+              color: '#475569',
+              fontSize: '14px',
+              marginRight: '4px'
+            }}>
+              {user.name}
+            </span>
+          )}
           <Avatar
             size="small"
             icon={<UserOutlined />}
-            style={{ backgroundColor: '#f5f7fa', color: '#3B82F6', cursor: 'pointer' }}
-            onClick={() => setProfileVisible(true)}
+            style={{ backgroundColor: '#f5f7fa', color: '#3B82F6' }}
           />
         </Space>
       </AntHeader>

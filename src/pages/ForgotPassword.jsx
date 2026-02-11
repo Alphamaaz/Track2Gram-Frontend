@@ -1,13 +1,28 @@
-import { Form, Input, Button, Typography, Card } from 'antd'
+import { useState } from 'react'
+import { Form, Input, Button, Typography, Card, App } from 'antd'
 import { Link } from 'react-router-dom'
 import { MailOutlined, ArrowLeftOutlined } from '@ant-design/icons'
 import logo from '../assets/tyy 1.svg'
+import authService from '../services/auth'
 
 const { Title, Text } = Typography
 
 export const ForgotPassword = () => {
-  const onFinish = (values) => {
-    console.log('Reset link requested for:', values)
+  const { message } = App.useApp()
+  const [loading, setLoading] = useState(false)
+
+  const onFinish = async (values) => {
+    setLoading(true)
+    try {
+      await authService.forgotPassword(values.email)
+      message.success('A password reset link has been sent to your email.')
+    } catch (error) {
+      console.error('Forgot password failed:', error)
+      const errorMessage = error.message || error.error || 'Failed to send reset link. Please try again.'
+      message.error(errorMessage)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -51,6 +66,7 @@ export const ForgotPassword = () => {
               type="primary"
               htmlType="submit"
               block
+              loading={loading}
               style={{ height: '54px', borderRadius: '12px', fontWeight: 'bold', fontSize: '16px', background: 'linear-gradient(to right, #2563EB, #3B82F6)', border: 'none', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)' }}
             >
               Send Reset Link

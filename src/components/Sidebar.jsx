@@ -10,13 +10,18 @@ import {
   SettingOutlined,
   LogoutOutlined,
   CustomerServiceOutlined,
-  HistoryOutlined
+  HistoryOutlined,
+  DollarOutlined
 } from '@ant-design/icons'
 
 const { Sider } = Layout
 
 const Sidebar = ({ collapsed, setCollapsed }) => {
   const location = useLocation()
+
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const userRole = (user.role || '').toLowerCase();
+  const isAdminOrOwner = userRole === 'admin' || userRole === 'owner';
 
   const menuItems = [
     {
@@ -68,7 +73,8 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
       icon: <BarChartOutlined />,
       label: <Link to="/analytics">Analytics</Link>,
     },
-    {
+
+    isAdminOrOwner && {
       key: '/role-management',
       icon: <TeamOutlined />,
       label: <Link to="/role-management">Role Management</Link>,
@@ -83,7 +89,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
       icon: <SettingOutlined />,
       label: <Link to="/settings">Settings</Link>,
     },
-  ]
+  ].filter(Boolean);
 
   return (
     <Sider

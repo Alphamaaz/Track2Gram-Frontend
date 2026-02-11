@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
     Tabs,
     Form,
@@ -12,168 +12,126 @@ import {
     Typography,
     Divider,
     Row,
-    Col
+    Col,
+    message,
+    Skeleton
 } from 'antd'
-import { PlusOutlined, EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons'
+import {
+    PlusOutlined,
+    EyeInvisibleOutlined,
+    EyeTwoTone,
+    UserOutlined,
+    GlobalOutlined
+} from '@ant-design/icons'
+import authService from '../services/auth'
 
 const { Title, Text } = Typography
-
-// --- Mock Data ---
-const usersData = [
-    {
-        key: '1',
-        name: 'Liam Carter',
-        email: 'liam.carter@example.com',
-        role: 'Admin',
-        status: 'Active',
-    },
-    {
-        key: '2',
-        name: 'Olivia Bennet',
-        email: 'olivia.bennet@example.com',
-        role: 'Client',
-        status: 'Active',
-    },
-    {
-        key: '3',
-        name: 'Ethan Walker',
-        email: 'ethan.walker@example.com',
-        role: 'Client',
-        status: 'Inactive',
-    },
-]
 
 // --- Components for each Tab ---
 
 const GeneralSettings = () => {
     const [form] = Form.useForm()
+    const [loading, setLoading] = useState(false)
+    const [fetching, setFetching] = useState(true)
+
+    useEffect(() => {
+        const fetchProfile = async () => {
+            try {
+                const response = await authService.getProfile();
+                const data = response.user || response;
+                form.setFieldsValue({
+                    name: data.name,
+                    email: data.email
+                });
+            } catch (error) {
+                console.error('Failed to fetch profile settings:', error);
+                message.error('Failed to load profile settings');
+            } finally {
+                setFetching(false);
+            }
+        };
+        fetchProfile();
+    }, [form]);
+
+    const handleSaveProfile = async () => {
+        try {
+            const values = await form.validateFields();
+            setLoading(true);
+
+            await authService.updateProfile({ name: values.name });
+            message.success('General settings updated successfully!');
+
+            // Refresh local storage
+            const freshProfile = await authService.getProfile();
+            localStorage.setItem('user', JSON.stringify(freshProfile.user || freshProfile));
+        } catch (error) {
+            console.error('Update failed:', error);
+            message.error(error.message || 'Failed to update settings');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (fetching) {
+        return <Skeleton active paragraph={{ rows: 6 }} />;
+    }
+
     return (
-        <div style={{ maxWidth: '800px' }}>
+        <div style={{ maxWidth: '600px' }}>
             <Form layout="vertical" form={form}>
-                {/* Personal Sections */}
-                <section style={{ marginBottom: 32 }}>
-                    <Form.Item label="Name" name="name">
-                        <Input placeholder="Enter name" />
+                {/* Personal Information */}
+                <Card
+                    title={<span style={{ fontWeight: 700 }}>Personal Information</span>}
+                    style={{ marginBottom: 24, borderRadius: '16px', boxShadow: '0 4px 12px rgba(0,0,0,0.02)', border: '1px solid #F1F5F9' }}
+                >
+                    <Form.Item label={<span style={{ fontWeight: 600 }}>Full Name</span>} name="name" style={{ marginBottom: 20 }}>
+                        <Input placeholder="Enter name" style={{ borderRadius: '10px', padding: '10px 14px' }} />
                     </Form.Item>
-                    <Form.Item label="Email" name="email">
-                        <Input placeholder="Enter email" />
+                    <Form.Item label={<span style={{ fontWeight: 600 }}>Email Address</span>} name="email" style={{ marginBottom: 0 }}>
+                        <Input placeholder="Enter email" disabled style={{ borderRadius: '10px', padding: '10px 14px', background: '#F8FAFC' }} />
                     </Form.Item>
-                    <Form.Item label="Timezone" name="timezone">
-                        <Input placeholder="Timezone" />
-                    </Form.Item>
-                </section>
-
-                {/* Ads Platform */}
-                <section style={{ marginBottom: 32 }}>
-                    <Title level={4}>Ads Platform</Title>
-                    <Form.Item label="Meta Business ID" name="metaBusinessId">
-                        <Input />
-                    </Form.Item>
-                    <Form.Item label="Meta Pixel ID" name="metaPixelId">
-                        <Input />
-                    </Form.Item>
-                    <Form.Item label="Meta Access Token" name="metaAccessToken">
-                        <Input />
-                    </Form.Item>
-                    <Form.Item label="Google Ads ID" name="googleAdsId">
-                        <Input />
-                    </Form.Item>
-                    <Form.Item label="Google Conversion ID" name="googleConversionId">
-                        <Input />
-                    </Form.Item>
-                    <Form.Item label="Google Conversion Label" name="googleConversionLabel">
-                        <Input />
-                    </Form.Item>
-                    <Form.Item label="Global App ID" name="globalAppId">
-                        <Input />
-                    </Form.Item>
-                    <Form.Item label="Global App Secret" name="globalAppSecret">
-                        <Input />
-                    </Form.Item>
-                </section>
-
-                {/* Telegram */}
-                <section style={{ marginBottom: 32 }}>
-                    <Title level={4}>Telegram</Title>
-                    <Form.Item label="Bot Token" name="telegramBotToken">
-                        <Input />
-                    </Form.Item>
-                    <Button style={{ marginBottom: 24 }}>Verify</Button>
-
-                    <Form.Item label="Channel" name="telegramChannel">
-                        <Input />
-                    </Form.Item>
-                </section>
-
-                {/* Landing Page */}
-                <section style={{ marginBottom: 32 }}>
-                    <Title level={4}>Landing Page</Title>
-                    <Form.Item label="Template" name="landingTemplate">
-                        <Input />
-                    </Form.Item>
-                    <Form.Item label="Domain" name="landingDomain">
-                        <Input />
-                    </Form.Item>
-                    <Form.Item label="Redirect URL" name="landingRedirectUrl">
-                        <Input />
-                    </Form.Item>
-                </section>
-
-                {/* User Management */}
-                <section style={{ marginBottom: 32 }}>
-                    <Title level={4}>Platform & User Management</Title>
-                    <Table
-                        dataSource={usersData}
-                        pagination={false}
-                        columns={[
-                            { title: 'Name', dataIndex: 'name', key: 'name' },
-                            { title: 'Email', dataIndex: 'email', key: 'email' },
-                            {
-                                title: 'Role',
-                                dataIndex: 'role',
-                                key: 'role',
-                                render: (role) => (
-                                    <Tag style={{ border: 'none', background: '#e6f4ff', color: '#1677ff', padding: '4px 12px', borderRadius: '12px', fontWeight: 500 }}>
-                                        {role}
-                                    </Tag>
-                                )
-                            },
-                            {
-                                title: 'Status',
-                                dataIndex: 'status',
-                                key: 'status',
-                                render: (status) => (
-                                    <Tag style={{ border: 'none', background: status === 'Active' ? '#f6ffed' : '#f5f5f5', color: status === 'Active' ? '#52c41a' : 'rgba(0,0,0,0.25)', padding: '4px 12px', borderRadius: '12px', fontWeight: 500 }}>
-                                        {status}
-                                    </Tag>
-                                )
-                            },
-                        ]}
-                    />
-                    <Button style={{ marginTop: 16 }}>Invite User</Button>
-                </section>
+                </Card>
 
                 {/* Notifications */}
-                <section style={{ marginBottom: 32 }}>
-                    <Title level={4}>Notifications</Title>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <Card
+                    title={<span style={{ fontWeight: 700 }}>Communication Preferences</span>}
+                    style={{ marginBottom: 24, borderRadius: '16px', boxShadow: '0 4px 12px rgba(0,0,0,0.02)', border: '1px solid #F1F5F9' }}
+                >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                         <div>
-                            <div style={{ fontWeight: 500 }}>Campaign Alerts</div>
-                            <div style={{ color: '#888', fontSize: '13px' }}>Receive alerts for campaign performance updates</div>
+                            <div style={{ fontWeight: 600, color: '#1E293B' }}>Campaign Alerts</div>
+                            <div style={{ color: '#64748B', fontSize: '12px' }}>Receive notifications for campaign updates.</div>
                         </div>
-                        <Switch />
+                        <Switch defaultChecked />
                     </div>
+                    <Divider style={{ margin: '16px 0' }} />
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
-                            <div style={{ fontWeight: 500 }}>Platform Updates</div>
-                            <div style={{ color: '#888', fontSize: '13px' }}>Get notified about new feature releases and updates.</div>
+                            <div style={{ fontWeight: 600, color: '#1E293B' }}>Platform Updates</div>
+                            <div style={{ color: '#64748B', fontSize: '13px' }}>Get notified about new feature releases.</div>
                         </div>
-                        <Switch />
+                        <Switch defaultChecked />
                     </div>
-                </section>
+                </Card>
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 40 }}>
-                    <Button type="primary" size="large" style={{ borderRadius: '6px' }}>Save Changes</Button>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 24 }}>
+                    <Button
+                        type="primary"
+                        size="large"
+                        style={{
+                            borderRadius: '12px',
+                            padding: '0 40px',
+                            height: '48px',
+                            fontWeight: 700,
+                            background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+                            border: 'none',
+                            boxShadow: '0 8px 20px rgba(37, 99, 235, 0.25)'
+                        }}
+                        onClick={handleSaveProfile}
+                        loading={loading}
+                    >
+                        Save Changes
+                    </Button>
                 </div>
             </Form>
         </div>

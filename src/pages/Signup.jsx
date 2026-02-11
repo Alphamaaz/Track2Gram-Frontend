@@ -1,17 +1,40 @@
-import { Form, Input, Button, Divider, Typography, Row, Col } from 'antd'
+import { Form, Input, Button, Divider, Typography, Row, Col, message } from 'antd'
 import { Link, useNavigate } from 'react-router-dom'
-import { GoogleOutlined } from '@ant-design/icons'
 import loginImage from '../assets/login.png'
 import logo from '../assets/tyy 1.svg'
+import authService from '../services/auth'
+import { useState } from 'react'
 
 const { Title, Text } = Typography
 
 export const Signup = () => {
   const navigate = useNavigate()
+  const [loading, setLoading] = useState(false)
 
-  const onFinish = (values) => {
-    console.log('Signup values:', values)
-    navigate('/dashboard')
+  const onFinish = async (values) => {
+    setLoading(true)
+    try {
+      // Mapping 'fullname' to 'name' as expected by the API
+      const registrationData = {
+        name: values.fullname,
+        email: values.email,
+        password: values.password
+      }
+
+      const response = await authService.register(registrationData)
+      message.success(response.message || 'Registration successful! Please check your email to verify your account.')
+
+      // Delay navigation to let the user read the success message
+      setTimeout(() => {
+        navigate('/login')
+      }, 2000)
+    } catch (error) {
+      console.error('Signup error details:', error)
+      const errorMsg = error.message || error.error || (typeof error === 'string' ? error : JSON.stringify(error))
+      message.error(errorMsg)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -34,6 +57,7 @@ export const Signup = () => {
             layout="vertical"
             size="large"
             autoComplete="off"
+            disabled={loading}
           >
             <Form.Item
               name="fullname"
@@ -61,23 +85,12 @@ export const Signup = () => {
                 type="primary"
                 htmlType="submit"
                 block
+                loading={loading}
                 style={{ height: '54px', borderRadius: '12px', fontWeight: 'bold', fontSize: '16px', marginTop: '12px', background: 'linear-gradient(to right, #2563EB, #3B82F6)', border: 'none', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)' }}
               >
                 Create Account
               </Button>
             </Form.Item>
-
-            <Divider plain style={{ margin: '32px 0' }}>
-              <Text type="secondary" style={{ fontSize: '12px' }}>Or continue with</Text>
-            </Divider>
-
-            <Button
-              block
-              icon={<GoogleOutlined />}
-              style={{ height: '54px', borderRadius: '12px', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            >
-              Sign up with Google
-            </Button>
 
             <div style={{ textAlign: 'center', marginTop: '32px' }}>
               <Text type="secondary">Already have an account? </Text>
