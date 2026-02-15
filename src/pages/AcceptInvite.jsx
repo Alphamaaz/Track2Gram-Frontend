@@ -115,13 +115,13 @@ const AcceptInvite = () => {
                     <div style={{
                         width: 64,
                         height: 64,
-                        background: '#3b82f6',
+                        background: '#084b8a',
                         borderRadius: 16,
                         display: 'flex',
                         justifyContent: 'center',
                         alignItems: 'center',
                         margin: '0 auto 16px',
-                        boxShadow: '0 10px 15px -3px rgba(59, 130, 246, 0.3)'
+                        boxShadow: '0 10px 15px -3px rgba(8, 75, 138, 0.3)'
                     }}>
                         <CheckCircleOutlined style={{ fontSize: 32, color: '#fff' }} />
                     </div>
@@ -174,7 +174,7 @@ const AcceptInvite = () => {
                             style={{
                                 height: 48,
                                 borderRadius: 8,
-                                background: '#3b82f6',
+                                background: '#084b8a',
                                 border: 'none',
                                 fontWeight: 600,
                                 fontSize: 16

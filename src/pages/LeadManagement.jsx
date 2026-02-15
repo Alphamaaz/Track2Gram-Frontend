@@ -150,7 +150,7 @@ const LeadManagement = () => {
                             borderRadius: '8px',
                             padding: '0 24px',
                             height: '40px',
-                            background: '#3B82F6',
+                            background: '#084b8a',
                             border: 'none',
                             fontWeight: 500
                         }}
@@ -187,9 +187,8 @@ const LeadManagement = () => {
             background: #F9FAFB !important;
           }
           .leads-table .ant-table-thead > tr > th {
-            background: #fff !important;
             font-weight: 600 !important;
-            color: #8c8c8c !important;
+            color: #ffffff !important;
             border-bottom: 1px solid #f0f0f0 !important;
             font-size: 13px !important;
             padding: 16px !important;
@@ -208,10 +207,10 @@ const LeadManagement = () => {
             border-radius: 8px !important;
           }
           .ant-pagination-item-active {
-            border-color: #3B82F6 !important;
+            border-color: #084b8a !important;
           }
           .ant-pagination-item-active a {
-            color: #3B82F6 !important;
+            color: #084b8a !important;
           }
         `}
             </style>

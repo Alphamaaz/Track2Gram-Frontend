@@ -37,7 +37,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
     {
       key: '/landing-pages',
       icon: <FileTextOutlined />,
-      label: <Link to="/landing-pages">Landing Pages</Link>,
+      label: <Link to="/landing-pages/builder">Landing Pages</Link>,
     },
     {
       key: '/integrations',
@@ -111,8 +111,9 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
         left: 0,
         top: 64,
         bottom: 0,
-        backgroundColor: '#3B82F6',
+        backgroundColor: '#084b8a',
         zIndex: 1002,
+        boxShadow: '4px 0 24px rgba(0,0,0,0.05)'
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -129,13 +130,19 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
           items={menuItems.map(item => ({
             ...item,
             style: {
-              color: '#ffffff',
+              color: '#cbd5e1', // Slate-300 for soft contrast
               marginBottom: '4px',
+              borderRadius: '8px',
+              marginInline: '12px',
+              width: 'calc(100% - 24px)',
             },
             ...(item.children ? {
               children: item.children.map(child => ({
                 ...child,
-                style: { color: '#ffffff' }
+                style: {
+                  color: '#cbd5e1',
+                  borderRadius: '8px',
+                }
               }))
             } : {})
           }))}
@@ -151,7 +158,12 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
                 key: 'logout',
                 icon: <LogoutOutlined />,
                 label: <Link to="/login">Logout</Link>,
-                style: { color: '#ffffff' }
+                style: {
+                  color: '#fb7185',
+                  borderRadius: '8px',
+                  marginInline: '12px',
+                  width: 'calc(100% - 24px)',
+                }
               }
             ]}
           />
@@ -161,32 +173,35 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
       <style>
         {`
           .ant-menu-item-selected {
-            background-color: rgba(255, 255, 255, 0.2) !important;
+            background-color: #084b8a !important;
             color: #fff !important;
-            font-weight: 700 !important;
           }
           .ant-menu-item:hover, .ant-menu-submenu-title:hover {
             color: #fff !important;
-            background-color: rgba(255, 255, 255, 0.1) !important;
+            background-color: rgba(255, 255, 255, 0.15) !important;
           }
           .ant-menu-item a, .ant-menu-submenu-title {
+            color: inherit !important;
+            font-weight: 500 !important;
+            transition: all 0.2s;
+          }
+          .ant-menu-item-selected a {
             color: #ffffff !important;
-            font-weight: 700 !important;
+            font-weight: 600 !important;
           }
           .ant-menu-item .anticon, .ant-menu-submenu-title .anticon {
             font-size: 18px !important;
-            color: #ffffff !important;
+            color: inherit !important;
           }
           .ant-menu-submenu-arrow {
-            color: #ffffff !important;
+            color: #94a3b8 !important;
           }
           .ant-menu-sub {
-            background: #3B82F6 !important;
+            background: transparent !important;
           }
-          .ant-layout-sider-collapsed .ant-menu-item, 
-          .ant-layout-sider-collapsed .ant-menu-submenu-title {
-             padding: 0 24px !important;
-             text-align: center !important;
+          .ant-layout-sider-collapsed .ant-menu-item {
+             margin-inline: 4px !important;
+             width: calc(100% - 8px) !important;
           }
         `}
       </style>

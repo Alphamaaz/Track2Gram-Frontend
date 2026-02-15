@@ -20,7 +20,7 @@ const TransactionHistory = () => {
             key: 'buyer',
             render: (text) => (
                 <Space>
-                    <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#E0F2FE', color: '#3B82F6' }} />
+                    <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#E0F2FE', color: '#084b8a' }} />
                     <Text strong style={{ color: '#1e293b' }}>{text}</Text>
                 </Space>
             ),
@@ -104,7 +104,7 @@ const TransactionHistory = () => {
                     type="primary"
                     icon={<DownloadOutlined />}
                     size="large"
-                    style={{ background: '#3B82F6', borderColor: '#3B82F6', borderRadius: '8px', height: '44px', fontWeight: 600 }}
+                    style={{ background: '#084b8a', borderColor: '#084b8a', borderRadius: '8px', height: '44px', fontWeight: 600 }}
                 >
                     Export History
                 </Button>
@@ -138,10 +138,9 @@ const TransactionHistory = () => {
             <style>
                 {`
                     .ant-table-thead > tr > th {
-                        background: #ffffff !important;
                         font-size: 11px !important;
                         font-weight: 900 !important;
-                        color: #1e293b !important;
+                        color: #ffffff !important;
                         text-transform: uppercase !important;
                         letter-spacing: 0.1em !important;
                         border-bottom: 2px solid #f0f0f0 !important;

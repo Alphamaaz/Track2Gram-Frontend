@@ -160,7 +160,7 @@ const EmailVerification = () => {
                                 top: 0,
                                 height: '100%',
                                 width: '100%',
-                                background: '#3b82f6',
+                                background: '#084b8a',
                                 borderRadius: '2px',
                                 animation: 'shimmer 2s infinite linear'
                             }} />
@@ -175,11 +175,11 @@ const EmailVerification = () => {
                                 height: '50px',
                                 borderRadius: '12px',
                                 fontWeight: 600,
-                                background: '#3b82f6',
+                                background: '#084b8a',
                                 border: 'none',
                                 fontSize: '16px',
                                 marginTop: '16px',
-                                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+                                boxShadow: '0 4px 12px rgba(8, 75, 138, 0.3)'
                             }}
                         >
                             Go to Login

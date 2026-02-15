@@ -20,10 +20,10 @@ const Dashboard = () => {
     { title: 'PROJECT NAME', dataIndex: 'name', key: 'name', render: (text) => <Text strong>{text}</Text> },
     { title: 'VISITS', dataIndex: 'visits', key: 'visits' },
     { title: 'CLICKS', dataIndex: 'clicks', key: 'clicks' },
-    { title: 'CLIENT', dataIndex: 'client', key: 'client', render: (text) => <Text style={{ color: '#3B82F6', cursor: 'pointer', fontWeight: '500' }}>{text}</Text> },
+    { title: 'CLIENT', dataIndex: 'client', key: 'client', render: (text) => <Text style={{ color: '#084b8a', cursor: 'pointer', fontWeight: '500' }}>{text}</Text> },
     { title: 'SUBSCRIBERS', dataIndex: 'subscriptions', key: 'subscriptions', render: (text) => <Text type="secondary">{text}</Text> },
     { title: 'UNSUBSCRIBERS', dataIndex: 'unsubscriptions', key: 'unsubscriptions', render: (text) => <Text type="secondary">{text}</Text> },
-    { title: 'PLATFORM', dataIndex: 'platform', key: 'platform', render: (text) => <Text style={{ color: text === 'Google Ads' ? '#3B82F6' : '#6366F1', fontWeight: 'bold' }}>{text}</Text> },
+    { title: 'PLATFORM', dataIndex: 'platform', key: 'platform', render: (text) => <Text style={{ color: text === 'Google Ads' ? '#084b8a' : '#6366F1', fontWeight: 'bold' }}>{text}</Text> },
     {
       title: 'STATUS',
       dataIndex: 'status',
@@ -84,9 +84,10 @@ const Dashboard = () => {
             <Card
               variant="borderless"
               style={{
-                background: '#CDE5FB',
+                background: 'rgba(8, 75, 138, 0.08)',
                 borderRadius: '16px',
-                height: '100%'
+                height: '100%',
+                border: '1px solid rgba(8, 75, 138, 0.12)'
               }}
               styles={{ body: { padding: '24px' } }}
             >
@@ -132,8 +133,8 @@ const Dashboard = () => {
           <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 800 200" style={{ overflow: 'visible' }}>
             <defs>
               <linearGradient id="chartGradient" x1="0" y2="1" x2="0" y1="0">
-                <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.1" />
-                <stop offset="100%" stopColor="#3B82F6" stopOpacity="0" />
+                <stop offset="0%" stopColor="#084b8a" stopOpacity="0.15" />
+                <stop offset="100%" stopColor="#084b8a" stopOpacity="0" />
               </linearGradient>
             </defs>
             <path
@@ -143,7 +144,7 @@ const Dashboard = () => {
             <path
               d="M 0 150 C 50 130, 100 170, 150 110 C 200 50, 250 130, 300 90 C 350 50, 400 140, 450 120 C 500 100, 550 170, 600 150 C 650 130, 700 40, 750 70"
               fill="none"
-              stroke="#3B82F6"
+              stroke="#084b8a"
               strokeWidth="3"
               strokeLinecap="round"
             />
@@ -180,10 +181,9 @@ const Dashboard = () => {
       <style>
         {`
           .ant-table-thead > tr > th {
-            background: #ffffff !important;
             font-size: 11px !important;
             font-weight: 900 !important;
-            color: #94A3B8 !important;
+            color: #ffffff !important;
             text-transform: uppercase !important;
             letter-spacing: 0.1em !important;
             padding: 20px 24px !important;

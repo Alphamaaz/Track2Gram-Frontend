@@ -176,7 +176,7 @@ const RoleManagement = () => {
             key: 'name',
             render: (text, record) => (
                 <Space>
-                    <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: '#f1f5f9', color: '#3b82f6' }} />
+                    <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: '#f1f5f9', color: '#084b8a' }} />
                     <span style={{ fontWeight: 500 }}>{text || record.email}</span>
                 </Space>
             ),
@@ -272,7 +272,7 @@ const RoleManagement = () => {
                 <Button
                     type="primary"
                     icon={<UserAddOutlined />}
-                    style={{ background: '#3b82f6', borderColor: '#3b82f6', height: '40px', borderRadius: '8px' }}
+                    style={{ background: '#084b8a', borderColor: '#084b8a', height: '40px', borderRadius: '8px' }}
                     onClick={() => showModal()}
                 >
                     Add User

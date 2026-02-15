@@ -7,7 +7,6 @@ import { ResetPassword } from './pages/ResetPassword'
 import Dashboard from './pages/Dashboard'
 import Projects from './pages/Projects'
 import ProjectConfiguration from './pages/ProjectConfiguration'
-import LandingPages from './pages/LandingPages'
 import LandingPageEditor from './pages/LandingPageEditor'
 import MetaAdsIntegration from './pages/MetaAdsIntegration'
 import GoogleAdsIntegration from './pages/GoogleAdsIntegration'
@@ -34,10 +33,31 @@ function App() {
     <ConfigProvider
       theme={{
         token: {
-          colorPrimary: '#3B82F6',
-          borderRadius: 8,
-          fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+          colorPrimary: '#084b8a',
+          borderRadius: 10,
+          fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+          colorBgContainer: '#ffffff',
+          colorBgLayout: '#f8fafc',
+          colorTextBase: '#0f172a',
         },
+        components: {
+          Button: {
+            borderRadius: 8,
+            controlHeight: 38,
+            fontWeight: 600,
+            colorPrimaryHover: '#0a5a9e',
+          },
+          Card: {
+            borderRadiusLG: 16,
+            boxShadowCard: '0 4px 24px rgba(0, 0, 0, 0.04)',
+          },
+          Table: {
+            borderRadiusLG: 12,
+            headerBg: '#084b8a',
+            headerColor: '#ffffff',
+            headerBorderRadius: 10,
+          }
+        }
       }}
     >
       <AntApp>
@@ -66,8 +86,8 @@ function App() {
                     />
                     <Content
                       style={{
-                        padding: 'clamp(12px, 3vw, 24px)',
-                        background: '#ffffff',
+                        padding: 'clamp(16px, 4vw, 32px)',
+                        background: '#f8fafc',
                         minHeight: 280,
                         transition: 'all 0.2s cubic-bezier(0.2, 0, 0, 1)',
                       }}
@@ -79,8 +99,10 @@ function App() {
 
                           <Route path="projects" element={<Projects />} />
                           <Route path="projects/new" element={<ProjectConfiguration />} />
-                          <Route path="landing-pages" element={<LandingPages />} />
-                          <Route path="landing-pages/:id" element={<LandingPageEditor />} />
+                          <Route path="projects/edit/:id" element={<ProjectConfiguration />} />
+                          <Route path="landing-pages" element={<Navigate to="/landing-pages/builder" replace />} />
+                          <Route path="landing-pages/builder" element={<LandingPageEditor />} />
+                          <Route path="landing-pages/builder/:id" element={<LandingPageEditor />} />
                           <Route path="integrations/meta-ads" element={<MetaAdsIntegration />} />
                           <Route path="integrations/google-ads" element={<GoogleAdsIntegration />} />
                           <Route path="integrations/telegram" element={<TelegramIntegration />} />

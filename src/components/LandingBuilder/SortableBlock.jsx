@@ -143,21 +143,21 @@ const TelegramComponent = ({ content, onChange, isEditing }) => {
                     onChange={(e) => onChange({ buttonText: e.target.value })}
                     style={{ marginBottom: '8px' }}
                 />
-                <div style={{ textAlign: 'center', padding: '16px', background: '#f0f8ff', borderRadius: '8px', border: '1px solid #bae7ff' }}>
-                    <SendOutlined style={{ fontSize: '32px', color: '#0088cc', marginBottom: '8px' }} />
+                <div style={{ textAlign: 'center', padding: '16px', background: 'rgba(8, 75, 138, 0.05)', borderRadius: '8px', border: '1px solid #8abef2' }}>
+                    <SendOutlined style={{ fontSize: '32px', color: '#084b8a', marginBottom: '8px' }} />
                     <Title level={5} style={{ margin: '0 0 4px 0' }}>{content.title}</Title>
                     <Text type="secondary" style={{ display: 'block', marginBottom: '8px' }}>{content.description}</Text>
-                    <Button type="primary" style={{ background: '#0088cc' }}>{content.buttonText}</Button>
+                    <Button type="primary" style={{ background: '#084b8a' }}>{content.buttonText}</Button>
                 </div>
             </div>
         )
     }
     return (
-        <div style={{ textAlign: 'center', padding: '16px', background: '#f0f8ff', borderRadius: '8px', border: '1px solid #bae7ff', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <SendOutlined style={{ fontSize: '32px', color: '#0088cc', marginBottom: '8px' }} />
+        <div style={{ textAlign: 'center', padding: '16px', background: 'rgba(8, 75, 138, 0.05)', borderRadius: '8px', border: '1px solid #8abef2', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <SendOutlined style={{ fontSize: '32px', color: '#084b8a', marginBottom: '8px' }} />
             <Title level={5} style={{ margin: '0 0 4px 0' }}>{content.title}</Title>
             <Text type="secondary" style={{ display: 'block', marginBottom: '8px' }}>{content.description}</Text>
-            <Button type="primary" style={{ background: '#0088cc' }}>{content.buttonText}</Button>
+            <Button type="primary" style={{ background: '#084b8a' }}>{content.buttonText}</Button>
         </div>
     );
 };
@@ -174,7 +174,7 @@ const SortableBlock = ({ block, isSelected, onSelect, onUpdate, onDelete }) => {
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
-        border: isSelected ? '2px solid #1890ff' : '1px solid transparent',
+        border: isSelected ? '2px solid #084b8a' : '1px solid transparent',
         background: '#fff',
         marginBottom: '16px',
         borderRadius: '8px',

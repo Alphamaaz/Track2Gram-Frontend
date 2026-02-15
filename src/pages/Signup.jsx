@@ -46,9 +46,9 @@ export const Signup = () => {
         {/* Left Side - Form */}
         <Col xs={24} md={12} className="signup-form-col">
           <div style={{ marginBottom: '32px' }}>
-            <img src={logo} alt="Track Bridge" style={{ height: '48px', marginBottom: '24px' }} />
-            <Title level={2} style={{ margin: 0, fontWeight: 800, background: 'linear-gradient(45deg, #2563EB, #3B82F6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Get started</Title>
-            <Text type="secondary">Create your account to start tracking</Text>
+            <img src={logo} alt="Track Bridge" style={{ height: '64px', marginBottom: '24px', filter: 'drop-shadow(0px 0px 0px #084b8a) grayscale(100%) brightness(50%) sepia(100%) hue-rotate(175deg) saturate(300%)' }} />
+            <Title level={2} style={{ margin: 0, fontWeight: 800, background: 'linear-gradient(45deg, #084b8a, #0a5a9e)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Get started</Title>
+            <Text style={{ color: '#000000', opacity: 0.85, fontSize: '16px' }}>Create your account to start tracking</Text>
           </div>
 
           <Form
@@ -86,15 +86,15 @@ export const Signup = () => {
                 htmlType="submit"
                 block
                 loading={loading}
-                style={{ height: '54px', borderRadius: '12px', fontWeight: 'bold', fontSize: '16px', marginTop: '12px', background: 'linear-gradient(to right, #2563EB, #3B82F6)', border: 'none', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)' }}
+                style={{ height: '54px', borderRadius: '12px', fontWeight: 'bold', fontSize: '16px', marginTop: '12px', background: 'linear-gradient(to right, #084b8a, #0a5a9e)', border: 'none', boxShadow: '0 4px 12px rgba(8, 75, 138, 0.2)' }}
               >
                 Create Account
               </Button>
             </Form.Item>
 
             <div style={{ textAlign: 'center', marginTop: '32px' }}>
-              <Text type="secondary">Already have an account? </Text>
-              <Link to="/login" style={{ color: '#3B82F6', fontWeight: 'bold' }}>
+              <Text style={{ color: '#000000', opacity: 0.85 }}>Already have an account? </Text>
+              <Link to="/login" style={{ color: '#084b8a', fontWeight: 'bold' }}>
                 Log in
               </Link>
             </div>
@@ -103,7 +103,7 @@ export const Signup = () => {
 
         {/* Right Side - Image */}
         <Col xs={0} md={12} style={{ background: '#F8FAFC', height: '100%', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', top: '-50%', right: '-50%', width: '100%', height: '100%', background: 'radial-gradient(circle, rgba(59,130,246,0.1) 0%, rgba(255,255,255,0) 70%)', transform: 'scale(1.5)' }}></div>
+          <div style={{ position: 'absolute', top: '-50%', right: '-50%', width: '100%', height: '100%', background: 'radial-gradient(circle, rgba(8, 75, 138, 0.1) 0%, rgba(255,255,255,0) 70%)', transform: 'scale(1.5)' }}></div>
           <img
             src={loginImage}
             alt="Track Bridge illustration"
@@ -122,8 +122,8 @@ export const Signup = () => {
             background: #F0F4F8;
             padding: 24px;
             background-image: 
-              radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.1) 0px, transparent 50%),
-              radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.1) 0px, transparent 50%);
+              radial-gradient(at 0% 0%, rgba(8, 75, 138, 0.1) 0px, transparent 50%),
+              radial-gradient(at 100% 100%, rgba(10, 90, 158, 0.1) 0px, transparent 50%);
           }
           .signup-card {
             max-width: 1200px;

@@ -123,9 +123,9 @@ const GeneralSettings = () => {
                             padding: '0 40px',
                             height: '48px',
                             fontWeight: 700,
-                            background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+                            background: 'linear-gradient(135deg, #084b8a 0%, #052c52 100%)',
                             border: 'none',
-                            boxShadow: '0 8px 20px rgba(37, 99, 235, 0.25)'
+                            boxShadow: '0 8px 20px rgba(8, 75, 138, 0.25)'
                         }}
                         onClick={handleSaveProfile}
                         loading={loading}

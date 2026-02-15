@@ -30,58 +30,58 @@ const request = async (endpoint, options = {}) => {
     }
 };
 
-export const landingPageService = {
+export const projectService = {
     /**
-     * Get all landing pages
+     * Get all projects
      */
-    getLandingPages: () => {
-        return request('/landing-pages', {
+    getProjects: () => {
+        return request('/projects', {
             method: 'GET',
         });
     },
 
     /**
-     * Get a single landing page by ID
+     * Get a single project by ID
      * @param {string} id
      */
-    getLandingPage: (id) => {
-        return request(`/landing-pages/${id}`, {
+    getProject: (id) => {
+        return request(`/projects/${id}`, {
             method: 'GET',
         });
     },
 
     /**
-     * Update a landing page
-     * @param {string} id
-     * @param {Object} data { name, html, type, scope, status, config }
+     * Create a new project
+     * @param {Object} data { name, landingPageSource, landingPageTemplateId, adPlatforms, ... }
      */
-    updateLandingPage: (id, data) => {
-        return request(`/landing-pages/${id}`, {
-            method: 'PATCH',
-            body: JSON.stringify(data),
-        });
-    },
-
-    /**
-     * Create a new landing page
-     * @param {Object} data { name, html }
-     */
-    createLandingPage: (data) => {
-        return request('/landing-pages', {
+    createProject: (data) => {
+        return request('/projects', {
             method: 'POST',
             body: JSON.stringify(data),
         });
     },
 
     /**
-     * Delete a landing page
+     * Update an existing project
+     * @param {string} id
+     * @param {Object} data
+     */
+    updateProject: (id, data) => {
+        return request(`/projects/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    },
+
+    /**
+     * Delete a project
      * @param {string} id
      */
-    deleteLandingPage: (id) => {
-        return request(`/landing-pages/${id}`, {
+    deleteProject: (id) => {
+        return request(`/projects/${id}`, {
             method: 'DELETE',
         });
     }
 };
 
-export default landingPageService;
+export default projectService;

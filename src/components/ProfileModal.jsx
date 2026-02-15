@@ -108,7 +108,7 @@ const ProfileModal = ({ visible, onCancel }) => {
                     {/* Left Sidebar - Profile Summary */}
                     <div style={{
                         width: '140px',
-                        background: 'linear-gradient(180deg, #F8FAFC 0%, #EFF6FF 100%)',
+                        background: 'linear-gradient(180deg, #F8FAFC 0%, rgba(8, 75, 138, 0.05) 100%)',
                         padding: '32px 12px',
                         textAlign: 'center',
                         display: 'flex',
@@ -127,15 +127,15 @@ const ProfileModal = ({ visible, onCancel }) => {
                             alignItems: 'center',
                             justifyContent: 'center',
                             marginBottom: '16px',
-                            boxShadow: '0 8px 16px rgba(59, 130, 246, 0.1)',
+                            boxShadow: '0 8px 16px rgba(8, 75, 138, 0.1)',
                         }}>
-                            <UserOutlined style={{ fontSize: '28px', color: '#3B82F6' }} />
+                            <UserOutlined style={{ fontSize: '28px', color: '#084b8a' }} />
                         </div>
                         <h3 style={{ margin: '0 0 4px 0', fontSize: '18px', fontWeight: 700, color: '#1E293B' }}>
                             {profileData.name}
                         </h3>
                         <span style={{
-                            background: '#3B82F6',
+                            background: '#084b8a',
                             color: '#fff',
                             padding: '2px 10px',
                             borderRadius: '8px',
@@ -164,6 +164,7 @@ const ProfileModal = ({ visible, onCancel }) => {
                                 <Input
                                     prefix={<UserOutlined style={{ color: '#94a3b8', fontSize: '14px', marginRight: '6px' }} />}
                                     disabled
+                                    autoComplete="name"
                                     style={{ borderRadius: '8px', height: '40px', background: '#F8FAFC', color: '#475569', fontSize: '14px' }}
                                 />
                             </Form.Item>
@@ -176,6 +177,7 @@ const ProfileModal = ({ visible, onCancel }) => {
                                 <Input
                                     prefix={<MailOutlined style={{ color: '#94a3b8', fontSize: '14px', marginRight: '6px' }} />}
                                     disabled
+                                    autoComplete="email"
                                     style={{ borderRadius: '8px', background: '#F8FAFC', height: '40px', color: '#475569', fontSize: '14px' }}
                                 />
                             </Form.Item>
@@ -217,10 +219,10 @@ const ProfileModal = ({ visible, onCancel }) => {
                                         flex: 2,
                                         borderRadius: '8px',
                                         height: '40px',
-                                        background: '#2563EB',
-                                        borderColor: '#2563EB',
+                                        background: '#084b8a',
+                                        borderColor: '#084b8a',
                                         fontWeight: 700,
-                                        boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)'
+                                        boxShadow: '0 4px 12px rgba(8, 75, 138, 0.2)'
                                     }}
                                 >
                                     Update Password

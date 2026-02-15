@@ -52,7 +52,7 @@ export const ResetPassword = () => {
             <Card className="reset-password-card" variant="borderless">
                 <div style={{ textAlign: 'center', marginBottom: '32px' }}>
                     <img src={logo} alt="Track Bridge" style={{ height: '48px', marginBottom: '24px' }} />
-                    <Title level={2} style={{ margin: 0, fontWeight: 800, background: 'linear-gradient(45deg, #2563EB, #3B82F6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                    <Title level={2} style={{ margin: 0, fontWeight: 800, background: 'linear-gradient(45deg, #084b8a, #0a5a9e)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                         Reset Password
                     </Title>
                     <Text type="secondary" style={{ display: 'block', marginTop: '12px' }}>
@@ -118,9 +118,9 @@ export const ResetPassword = () => {
                                 borderRadius: '12px',
                                 fontWeight: 'bold',
                                 fontSize: '16px',
-                                background: 'linear-gradient(to right, #2563EB, #3B82F6)',
+                                background: 'linear-gradient(to right, #084b8a, #0a5a9e)',
                                 border: 'none',
-                                boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)'
+                                boxShadow: '0 4px 12px rgba(8, 75, 138, 0.2)'
                             }}
                         >
                             Reset Password
@@ -128,7 +128,7 @@ export const ResetPassword = () => {
                     </Form.Item>
 
                     <div style={{ textAlign: 'center' }}>
-                        <Link to="/login" style={{ color: '#3B82F6', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                        <Link to="/login" style={{ color: '#084b8a', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                             <ArrowLeftOutlined /> Back to Login
                         </Link>
                     </div>
@@ -145,8 +145,8 @@ export const ResetPassword = () => {
                         background: #F0F4F8;
                         padding: 24px;
                         background-image: 
-                            radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.1) 0px, transparent 50%),
-                            radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.1) 0px, transparent 50%);
+                            radial-gradient(at 0% 0%, rgba(8, 75, 138, 0.1) 0px, transparent 50%),
+                            radial-gradient(at 100% 100%, rgba(10, 90, 158, 0.1) 0px, transparent 50%);
                     }
                     .reset-password-card {
                         max-width: 500px;

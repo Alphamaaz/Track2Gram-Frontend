@@ -159,8 +159,8 @@ const VisualHTMLEditor = ({ html, onHtmlChange }) => {
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <div style={{
                 padding: '12px 16px',
-                background: '#f5f5f5',
-                borderBottom: '1px solid #e0e0e0',
+                background: '#ffffff',
+                borderBottom: '1px solid #084b8a33',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center'
@@ -176,10 +176,11 @@ const VisualHTMLEditor = ({ html, onHtmlChange }) => {
                     {editMode && (
                         <div style={{
                             padding: '4px 12px',
-                            background: '#e6f7ff',
+                            background: 'rgba(8, 75, 138, 0.05)',
                             borderRadius: '4px',
                             fontSize: '13px',
-                            color: '#1890ff'
+                            color: '#084b8a',
+                            border: '1px solid rgba(8, 75, 138, 0.1)'
                         }}>
                             💡 Click text to edit, click images to replace
                         </div>

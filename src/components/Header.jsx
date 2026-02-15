@@ -40,29 +40,30 @@ const Header = ({ collapsed, onToggle }) => {
               fontSize: '16px',
               width: 40,
               height: 40,
-              color: '#3B82F6'
+              color: '#084b8a',
+              transition: 'all 0.3s'
             }}
           />
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <img src={logo} alt="Track Bridge" style={{ height: '42px', width: 'auto' }} />
+            <img src={logo} alt="Track Bridge" style={{ height: '54px', width: 'auto', filter: 'drop-shadow(0px 0px 0px #084b8a) grayscale(100%) brightness(50%) sepia(100%) hue-rotate(175deg) saturate(300%)' }} />
           </div>
         </div>
 
-        <Space size="middle" onClick={() => setProfileVisible(true)} style={{ cursor: 'pointer' }}>
+        <Space size="large" onClick={() => setProfileVisible(true)} style={{ cursor: 'pointer', transition: 'all 0.3s' }}>
           {user.name && (
             <span style={{
-              fontWeight: 600,
-              color: '#475569',
-              fontSize: '14px',
-              marginRight: '4px'
+              fontWeight: 700,
+              color: '#1e293b',
+              fontSize: '16px',
+              marginRight: '6px'
             }}>
               {user.name}
             </span>
           )}
           <Avatar
-            size="small"
+            size="default"
             icon={<UserOutlined />}
-            style={{ backgroundColor: '#f5f7fa', color: '#3B82F6' }}
+            style={{ backgroundColor: '#f1f5f9', color: '#084b8a', fontSize: '18px' }}
           />
         </Space>
       </AntHeader>

@@ -38,8 +38,8 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #d9d9d9;
-  border-radius: 3px;
+  background: #084b8a;
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -62,4 +62,24 @@ h6 {
   font-weight: 700 !important;
   color: #1e293b;
   /* Slate-800 for professional look */
+}
+
+/* Global Table Header Branding */
+.ant-table-thead>tr>th {
+  background-color: #084b8a !important;
+  color: #ffffff !important;
+  border-bottom: none !important;
+  font-weight: 600 !important;
+}
+
+.ant-table-thead th.ant-table-column-has-sorters:hover {
+  background-color: #0a5a9e !important;
+}
+
+.ant-table-thead th.ant-table-column-sort {
+  background-color: #0a5a9e !important;
+}
+
+.ant-table-column-sorter {
+  color: #ffffff !important;
 }

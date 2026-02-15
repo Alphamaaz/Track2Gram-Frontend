@@ -245,8 +245,8 @@ const Analytics = () => {
                         <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                             <defs>
                                 <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.2} />
-                                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
+                                    <stop offset="5%" stopColor="#084b8a" stopOpacity={0.2} />
+                                    <stop offset="95%" stopColor="#084b8a" stopOpacity={0} />
                                 </linearGradient>
                             </defs>
                             <XAxis
@@ -269,7 +269,7 @@ const Analytics = () => {
                             <Area
                                 type="monotone"
                                 dataKey="value"
-                                stroke="#3B82F6"
+                                stroke="#084b8a"
                                 strokeWidth={3}
                                 fillOpacity={1}
                                 fill="url(#colorValue)"
@@ -344,8 +344,8 @@ const Analytics = () => {
                         <AreaChart data={cpaChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                             <defs>
                                 <linearGradient id="colorCpa" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.2} />
-                                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
+                                    <stop offset="5%" stopColor="#084b8a" stopOpacity={0.2} />
+                                    <stop offset="95%" stopColor="#084b8a" stopOpacity={0} />
                                 </linearGradient>
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
@@ -369,7 +369,7 @@ const Analytics = () => {
                             <Area
                                 type="monotone"
                                 dataKey="value"
-                                stroke="#3B82F6"
+                                stroke="#084b8a"
                                 strokeWidth={3}
                                 fillOpacity={1}
                                 fill="url(#colorCpa)"

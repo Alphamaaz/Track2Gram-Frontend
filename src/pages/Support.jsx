@@ -95,7 +95,7 @@ const Support = () => {
                                     type="primary"
                                     htmlType="submit"
                                     icon={<SendOutlined />}
-                                    style={{ background: '#3b82f6', borderColor: '#3b82f6', height: '40px' }}
+                                    style={{ background: '#084b8a', borderColor: '#084b8a', height: '40px' }}
                                 >
                                     Send Message
                                 </Button>
@@ -113,14 +113,14 @@ const Support = () => {
                                 <div>
                                     <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>EMAIL US</Text>
                                     <Space>
-                                        <MailOutlined style={{ color: '#3b82f6' }} />
+                                        <MailOutlined style={{ color: '#084b8a' }} />
                                         <Text strong>support@trackbridge.com</Text>
                                     </Space>
                                 </div>
                                 <div>
                                     <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>CALL US</Text>
                                     <Space>
-                                        <PhoneOutlined style={{ color: '#3b82f6' }} />
+                                        <PhoneOutlined style={{ color: '#084b8a' }} />
                                         <Text strong>+971 4 123 4567</Text>
                                     </Space>
                                 </div>

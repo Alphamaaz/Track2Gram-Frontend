@@ -1,119 +1,303 @@
-import React from 'react';
-import { Typography, Input, Button, Select, Space, Card, Radio } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Typography, Input, Button, Select, Space, Card, Radio, App, Checkbox, Row, Col, Divider, Tooltip, Tag } from 'antd';
+import {
+    ArrowLeftOutlined,
+    RocketOutlined,
+    GlobalOutlined,
+    ThunderboltOutlined,
+    SettingOutlined,
+    InfoCircleOutlined,
+    CheckCircleFilled,
+    GoogleOutlined,
+    FacebookOutlined
+} from '@ant-design/icons';
+import { useNavigate, useParams } from 'react-router-dom';
+import projectService from '../services/project';
+import landingPageService from '../services/landingPage';
 
-const { Title, Text } = Typography;
+const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 
 const ProjectConfiguration = () => {
     const navigate = useNavigate();
+    const { id } = useParams();
+    const { message } = App.useApp();
+    const [loading, setLoading] = useState(false);
+    const [templates, setTemplates] = useState([]);
 
-    const sectionStyle = {
-        marginBottom: '32px'
+    // Form State
+    const [formData, setFormData] = useState({
+        name: '',
+        landingPageSource: 'internal',
+        customHtml: null,
+        landingPageTemplateId: '',
+        adPlatforms: ['google']
+    });
+
+    useEffect(() => {
+        const fetchTemplates = async () => {
+            try {
+                const response = await landingPageService.getLandingPages();
+                if (response.success) {
+                    setTemplates(response.data || []);
+                }
+            } catch {
+                console.error('Failed to fetch templates');
+            }
+        };
+
+        const fetchProject = async () => {
+            if (id && id !== 'new') {
+                setLoading(true);
+                try {
+                    const response = await projectService.getProject(id);
+                    if (response.success) {
+                        setFormData(response.data);
+                    }
+                } catch {
+                    message.error('Failed to load project details');
+                } finally {
+                    setLoading(false);
+                }
+            }
+        };
+
+        fetchTemplates();
+        fetchProject();
+    }, [id, message]);
+
+    const handleSave = async () => {
+        if (!formData.name) return message.error('Project Name is required');
+        if (formData.landingPageSource === 'internal' && !formData.landingPageTemplateId) {
+            return message.error('Please select a landing page template');
+        }
+
+        setLoading(true);
+        try {
+            let response;
+            if (id && id !== 'new') {
+                response = await projectService.updateProject(id, formData);
+            } else {
+                response = await projectService.createProject(formData);
+            }
+
+            if (response.success) {
+                message.success(id ? 'Project updated successfully' : 'Project created successfully');
+                navigate('/projects');
+            }
+        } catch (error) {
+            message.error(error.message || 'Failed to save project');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const cardStyle = {
+        borderRadius: '12px',
+        border: '1px solid #f0f0f0',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+        marginBottom: '24px'
     };
 
     const labelStyle = {
         display: 'block',
         marginBottom: '8px',
-        fontWeight: 500,
-        color: '#333'
+        fontWeight: 600,
+        color: '#1f1f1f',
+        fontSize: '14px'
     };
 
-    const inputStyle = {
-        height: '48px',
+    const platformCardStyle = (isActive) => ({
+        padding: '16px',
         borderRadius: '8px',
-        width: '100%',
-        maxWidth: '600px'
-    };
-
-    const selectStyle = {
-        width: '100%',
-        maxWidth: '600px',
-        borderRadius: '8px'
-    };
+        border: isActive ? '2px solid #084b8a' : '1px solid #d9d9d9',
+        background: isActive ? '#f0f7ff' : '#fff',
+        cursor: 'pointer',
+        transition: 'all 0.3s ease',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        width: '100%'
+    });
 
     return (
-        <div style={{ padding: '0 24px', maxWidth: '1000px' }}>
-            <div style={{ marginBottom: 32 }}>
-                <Title level={2}>Project Configuration</Title>
+        <div style={{ padding: '24px', maxWidth: '1000px', margin: '0 auto' }}>
+            {/* Header Area */}
+            <div style={{ marginBottom: '32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Space size="middle">
+                    <Button
+                        icon={<ArrowLeftOutlined />}
+                        onClick={() => navigate('/projects')}
+                        type="default"
+                        style={{ borderRadius: '8px' }}
+                    />
+                    <div>
+                        <Title level={2} style={{ margin: 0, fontSize: '24px' }}>
+                            {id ? 'Project Settings' : 'Create New Project'}
+                        </Title>
+                        <Text type="secondary">Configure your project identity and tracking settings.</Text>
+                    </div>
+                </Space>
             </div>
 
-            {/* Project Identity Section */}
-            <div style={sectionStyle}>
-                <Title level={5}>Project Identity</Title>
-                <div style={{ marginBottom: '16px' }}>
-                    <label style={labelStyle}>Project Name</label>
-                    <Input placeholder="Enter project name" style={inputStyle} />
-                </div>
-                <div>
-                    <Radio.Group defaultValue="google" buttonStyle="solid">
-                        <Radio.Button value="google" style={{ height: '40px', lineHeight: '38px', borderRadius: '8px 0 0 8px' }}>Google Ads</Radio.Button>
-                        <Radio.Button value="meta" style={{ height: '40px', lineHeight: '38px', borderRadius: '0 8px 8px 0' }}>Meta Ads</Radio.Button>
-                    </Radio.Group>
-                </div>
-            </div>
+            <Row gutter={24}>
+                <Col span={24}>
+                    {/* Basic Info Card */}
+                    <Card
+                        title={<Space><SettingOutlined /> <Text strong>Project Identity</Text></Space>}
+                        style={cardStyle}
+                        styles={{ header: { borderBottom: '1px solid #f0f0f0', background: '#fafafa' } }}
+                    >
+                        <div style={{ marginBottom: '24px' }}>
+                            <label style={labelStyle}>
+                                Project Name
+                                <Tooltip title="Give your project a descriptive name for internal tracking.">
+                                    <InfoCircleOutlined style={{ marginLeft: '8px', color: '#8c8c8c' }} />
+                                </Tooltip>
+                            </label>
+                            <Input
+                                placeholder="e.g., Summer Campaign 2024"
+                                style={{ height: '44px', borderRadius: '8px' }}
+                                value={formData.name}
+                                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                autoComplete="off"
+                            />
+                        </div>
 
-            {/* Tracking Setup Section */}
-            <div style={sectionStyle}>
-                <Title level={5}>Tracking Setup</Title>
-                <label style={labelStyle}>Pixel ID or Google Conversion ID</label>
-                <Input placeholder="Enter ID" style={inputStyle} />
-            </div>
+                        <div>
+                            <label style={labelStyle}>Target Platforms</label>
+                            <Row gutter={16}>
+                                <Col span={12}>
+                                    <div
+                                        style={platformCardStyle(formData.adPlatforms.includes('google'))}
+                                        onClick={() => {
+                                            const platforms = formData.adPlatforms.includes('google')
+                                                ? formData.adPlatforms.filter(p => p !== 'google')
+                                                : [...formData.adPlatforms, 'google'];
+                                            setFormData({ ...formData, adPlatforms: platforms });
+                                        }}
+                                    >
+                                        <GoogleOutlined style={{ fontSize: '24px', color: '#4285F4' }} />
+                                        <div style={{ flex: 1 }}>
+                                            <Text strong style={{ display: 'block' }}>Google Ads</Text>
+                                            <Text type="secondary" style={{ fontSize: '12px' }}>Search & Display</Text>
+                                        </div>
+                                        {formData.adPlatforms.includes('google') && <CheckCircleFilled style={{ color: '#084b8a' }} />}
+                                    </div>
+                                </Col>
+                                <Col span={12}>
+                                    <div
+                                        style={platformCardStyle(formData.adPlatforms.includes('meta'))}
+                                        onClick={() => {
+                                            const platforms = formData.adPlatforms.includes('meta')
+                                                ? formData.adPlatforms.filter(p => p !== 'meta')
+                                                : [...formData.adPlatforms, 'meta'];
+                                            setFormData({ ...formData, adPlatforms: platforms });
+                                        }}
+                                    >
+                                        <FacebookOutlined style={{ fontSize: '24px', color: '#0668E1' }} />
+                                        <div style={{ flex: 1 }}>
+                                            <Text strong style={{ display: 'block' }}>Meta Ads</Text>
+                                            <Text type="secondary" style={{ fontSize: '12px' }}>Facebook & Insta</Text>
+                                        </div>
+                                        {formData.adPlatforms.includes('meta') && <CheckCircleFilled style={{ color: '#084b8a' }} />}
+                                    </div>
+                                </Col>
+                            </Row>
+                        </div>
+                    </Card>
 
-            {/* Event Configuration Section */}
-            <div style={sectionStyle}>
-                <Title level={5}>Event Configuration</Title>
-                <label style={labelStyle}>Conversion Event</label>
-                <Select placeholder="Select event" style={selectStyle} size="large">
-                    <Option value="purchase">Purchase</Option>
-                    <Option value="lead">Lead</Option>
-                    <Option value="signup">Sign Up</Option>
-                </Select>
-            </div>
+                    {/* Landing Page Card */}
+                    <Card
+                        title={<Space><GlobalOutlined /> <Text strong>Landing Page Configuration</Text></Space>}
+                        style={cardStyle}
+                        styles={{ header: { borderBottom: '1px solid #f0f0f0', background: '#fafafa' } }}
+                    >
+                        <div style={{ marginBottom: '24px' }}>
+                            <label style={labelStyle}>Source Selection</label>
+                            <Radio.Group
+                                value={formData.landingPageSource}
+                                onChange={e => setFormData({ ...formData, landingPageSource: e.target.value })}
+                                optionType="button"
+                                buttonStyle="solid"
+                                style={{ width: '100%' }}
+                            >
+                                <Radio.Button value="internal" style={{ width: '50%', textAlign: 'center', height: '40px', lineHeight: '38px' }}>
+                                    TrackBridge Builder
+                                </Radio.Button>
+                                <Radio.Button value="external" style={{ width: '50%', textAlign: 'center', height: '40px', lineHeight: '38px' }}>
+                                    External URL
+                                </Radio.Button>
+                            </Radio.Group>
+                        </div>
 
-            {/* Telegram Integration Section */}
-            <div style={sectionStyle}>
-                <Title level={5}>Telegram Integration</Title>
-                <div style={{ marginBottom: '16px' }}>
-                    <label style={labelStyle}>Telegram Bot</label>
-                    <Select placeholder="Select bot" style={selectStyle} size="large">
-                        <Option value="bot1">TrackBridge_Bot</Option>
-                    </Select>
-                </div>
-                <div>
-                    <label style={labelStyle}>Telegram Channel</label>
-                    <Select placeholder="Select channel" style={selectStyle} size="large">
-                        <Option value="chan1">Marketing Leads</Option>
-                    </Select>
-                </div>
-            </div>
+                        {formData.landingPageSource === 'internal' ? (
+                            <div>
+                                <label style={labelStyle}>Select Template</label>
+                                <Select
+                                    placeholder="Choose from your saved landing pages..."
+                                    style={{ width: '100%', height: '44px', borderRadius: '8px' }}
+                                    size="large"
+                                    value={formData.landingPageTemplateId || undefined}
+                                    onChange={value => setFormData({ ...formData, landingPageTemplateId: value })}
+                                >
+                                    {templates.map(t => (
+                                        <Option key={t._id} value={t._id}>
+                                            <Space>
+                                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#52c41a' }} />
+                                                {t.name}
+                                            </Space>
+                                        </Option>
+                                    ))}
+                                </Select>
+                                {templates.length === 0 && (
+                                    <Text type="warning" style={{ fontSize: '12px', marginTop: '8px', display: 'block' }}>
+                                        No templates found. Go to Landing Page Builder to create one first.
+                                    </Text>
+                                )}
+                            </div>
+                        ) : (
+                            <div>
+                                <label style={labelStyle}>Destination URL</label>
+                                <Input
+                                    placeholder="https://your-page.com"
+                                    style={{ height: '44px', borderRadius: '8px' }}
+                                    autoComplete="url"
+                                />
+                                <Text type="secondary" style={{ fontSize: '12px' }}>
+                                    Traffic will be redirected to this URL after tracking.
+                                </Text>
+                            </div>
+                        )}
+                    </Card>
 
-            {/* Domain Setup Section */}
-            <div style={sectionStyle}>
-                <Title level={5}>Domain Setup</Title>
-                <label style={labelStyle}>Verified Tracking Domain</label>
-                <Select placeholder="Select domain" style={selectStyle} size="large">
-                    <Option value="dom1">track.example.com</Option>
-                </Select>
-            </div>
-
-            {/* Actions */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', marginTop: '48px', paddingBottom: '48px' }}>
-                <Button
-                    onClick={() => navigate('/projects')}
-                    style={{ height: '40px', borderRadius: '8px', padding: '0 24px' }}
-                >
-                    Cancel
-                </Button>
-                <Button
-                    type="primary"
-                    onClick={() => navigate('/projects')}
-                    style={{ height: '40px', borderRadius: '8px', padding: '0 24px' }}
-                >
-                    Save Project
-                </Button>
-            </div>
+                    {/* Bottom Actions */}
+                    <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end', marginTop: '32px' }}>
+                        <Button
+                            onClick={() => navigate('/projects')}
+                            style={{ height: '48px', borderRadius: '8px', padding: '0 32px' }}
+                        >
+                            Discard
+                        </Button>
+                        <Button
+                            type="primary"
+                            icon={<RocketOutlined />}
+                            onClick={handleSave}
+                            loading={loading}
+                            style={{
+                                height: '48px',
+                                borderRadius: '8px',
+                                padding: '0 48px',
+                                fontWeight: 600,
+                                fontSize: '16px',
+                                boxShadow: '0 4px 12px rgba(8, 75, 138, 0.3)'
+                            }}
+                        >
+                            {id ? 'Update Project' : 'Launch Project'}
+                        </Button>
+                    </div>
+                </Col>
+            </Row>
         </div>
     );
 };
