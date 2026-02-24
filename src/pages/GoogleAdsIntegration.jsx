@@ -107,12 +107,7 @@ const GoogleAdsIntegration = () => {
             setConnecting(true);
             const response = await googleAdsService.connect();
             if (response.success && response.data.authUrl) {
-                // Professional fix: match the redirect domain to the current window origin
-                // This ensures you stay on localhost if you are working locally
-                const correctRedirectUri = `${window.location.origin}/integrations/google-ads/authorize`;
-                const url = new URL(response.data.authUrl);
-                url.searchParams.set('redirect_uri', correctRedirectUri);
-                window.location.href = url.toString();
+                window.location.href = response.data.authUrl;
             } else {
                 throw new Error('Authorization URL not found');
             }
