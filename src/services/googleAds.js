@@ -52,8 +52,7 @@ export const googleAdsService = {
      * Get authorization URL for Google Ads
      */
     connect: () => {
-        // Always use the current app's origin so the OAuth redirect URI matches
-        // the domain the user is actually on (prevents redirect to localhost or wrong Vercel URL)
+        // Dynamic redirectUri based on current domain (localhost or Vercel)
         const redirectUri = `${window.location.origin}/integrations/google-ads/authorize`;
         return request('/google-ads/connect', {
             method: 'POST',

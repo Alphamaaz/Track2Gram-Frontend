@@ -107,8 +107,8 @@ const GoogleAdsIntegration = () => {
             setConnecting(true);
             const response = await googleAdsService.connect();
             if (response.success && response.data.authUrl) {
-                // Fix: Override the redirect_uri in the authUrl to use the current domain
-                // This prevents redirecting to localhost when running on Vercel (or vice versa)
+                // Professional fix: match the redirect domain to the current window origin
+                // This ensures you stay on localhost if you are working locally
                 const correctRedirectUri = `${window.location.origin}/integrations/google-ads/authorize`;
                 const url = new URL(response.data.authUrl);
                 url.searchParams.set('redirect_uri', correctRedirectUri);
