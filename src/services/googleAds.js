@@ -100,12 +100,36 @@ export const googleAdsService = {
 
     /**
      * Get conversion actions for the connected account
-     * @param {string} customerId 
+     *
+     * The backend might return different shapes (array only, { data: [] }, or { success, data }).
+     * This normalizes the response so the caller can always rely on { success, data }.
      */
-    getConversionActions: async (customerId) => {
-        const response = await request(`/settings/conversion-actions?customerId=${customerId}`, {
+    getConversionActions: async () => {
+        const raw = await request(`/settings/conversion-actions`, {
             method: 'GET',
         });
+
+        let response;
+        // If the API returns a bare array
+        if (Array.isArray(raw)) {
+            response = { success: true, data: raw };
+           
+        }
+        // If the API already returns an object with a data array
+        else if (raw && Array.isArray(raw.data)) {
+            response = {
+                success: raw.success ?? true,
+                data: raw.data,
+                message: raw.message,
+            };
+             console.log("conversion action data", response)
+        }
+        // If the API uses a different key like conversion_actions
+        else if (raw && Array.isArray(raw.conversion_actions)) {
+            response = { success: true, data: raw.conversion_actions };
+        } else {
+            response = raw || { success: false, data: [] };
+        }
 
         // Flatten the response if it matches the nested structure (conversion_action: { ... })
         if (response.success && Array.isArray(response.data)) {
