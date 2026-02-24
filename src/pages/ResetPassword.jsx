@@ -51,7 +51,7 @@ export const ResetPassword = () => {
         <div className="reset-password-container">
             <Card className="reset-password-card" variant="borderless">
                 <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-                    <img src={logo} alt="Track Bridge" style={{ height: '48px', marginBottom: '24px' }} />
+                    <img src={logo} alt="Track2Gram" style={{ height: '48px', marginBottom: '24px' }} />
                     <Title level={2} style={{ margin: 0, fontWeight: 800, background: 'linear-gradient(45deg, #084b8a, #0a5a9e)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                         Reset Password
                     </Title>

@@ -45,13 +45,13 @@ const Header = ({ collapsed, onToggle }) => {
             }}
           />
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <img src={logo} alt="Track Bridge" style={{ height: '54px', width: 'auto', filter: 'drop-shadow(0px 0px 0px #084b8a) grayscale(100%) brightness(50%) sepia(100%) hue-rotate(175deg) saturate(300%)' }} />
+            <img src={logo} alt="Track2Gram" className="track-bridge-logo" style={{ height: '44px', width: 'auto' }} />
           </div>
         </div>
 
         <Space size="large" onClick={() => setProfileVisible(true)} style={{ cursor: 'pointer', transition: 'all 0.3s' }}>
           {user.name && (
-            <span style={{
+            <span className="user-name-desktop" style={{
               fontWeight: 700,
               color: '#1e293b',
               fontSize: '16px',
@@ -71,6 +71,18 @@ const Header = ({ collapsed, onToggle }) => {
         visible={profileVisible}
         onCancel={() => setProfileVisible(false)}
       />
+      <style>
+        {`
+          @media (max-width: 576px) {
+            .user-name-desktop {
+              display: none !important;
+            }
+            .track-bridge-logo {
+              height: 32px !important;
+            }
+          }
+        `}
+      </style>
     </>
   )
 }

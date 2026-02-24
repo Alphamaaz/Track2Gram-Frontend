@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Form, Input, Button, App, Divider, Skeleton } from 'antd';
-import { UserOutlined, MailOutlined, GlobalOutlined } from '@ant-design/icons';
+import { UserOutlined, MailOutlined, GlobalOutlined, LogoutOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import authService from '../services/auth';
 
 const ProfileModal = ({ visible, onCancel }) => {
+    const navigate = useNavigate();
     const { message } = App.useApp();
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
@@ -86,6 +88,13 @@ const ProfileModal = ({ visible, onCancel }) => {
         }
     };
 
+    const handleLogout = () => {
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+        onCancel();
+        navigate('/login');
+    };
+
     return (
         <Modal
             title={null}
@@ -104,7 +113,7 @@ const ProfileModal = ({ visible, onCancel }) => {
                     <Skeleton active avatar paragraph={{ rows: 2 }} />
                 </div>
             ) : (
-                <div style={{ borderRadius: '12px', overflow: 'hidden', display: 'flex' }}>
+                <div className="profile-modal-container" style={{ borderRadius: '12px', overflow: 'hidden', display: 'flex' }}>
                     {/* Left Sidebar - Profile Summary */}
                     <div style={{
                         width: '140px',
@@ -146,6 +155,24 @@ const ProfileModal = ({ visible, onCancel }) => {
                         }}>
                             {profileData.role}
                         </span>
+
+                        <Divider style={{ margin: '16px 0', borderColor: 'rgba(8, 75, 138, 0.1)' }} />
+
+                        <Button
+                            danger
+                            type="text"
+                            icon={<LogoutOutlined />}
+                            onClick={handleLogout}
+                            style={{
+                                fontWeight: 700,
+                                fontSize: '13px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px'
+                            }}
+                        >
+                            Logout
+                        </Button>
                     </div>
 
                     {/* Right Side - Form Fields */}
@@ -232,6 +259,25 @@ const ProfileModal = ({ visible, onCancel }) => {
                     </div>
                 </div>
             )}
+            <style>
+                {`
+                    @media (max-width: 576px) {
+                        .profile-modal-container {
+                            flex-direction: column !important;
+                        }
+                        .profile-modal-container > div:first-child {
+                            width: 100% !important;
+                            padding: 24px 12px !important;
+                            border-right: none !important;
+                            border-bottom: 1px solid #F1F5F9 !important;
+                        }
+                        .mobile-logout-btn {
+                            display: flex !important;
+                            justify-content: center !important;
+                        }
+                    }
+                `}
+            </style>
         </Modal>
     );
 };

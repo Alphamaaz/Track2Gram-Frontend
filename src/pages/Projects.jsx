@@ -32,6 +32,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import projectService from '../services/project';
+import { BASE_DOMAIN } from '../config';
 
 const { Title, Text } = Typography;
 
@@ -161,11 +162,11 @@ const Projects = () => {
     {
       title: 'Analytics',
       key: 'analytics',
-      render: () => (
+      render: (_, record) => (
         <Button
           type="link"
           size="small"
-          onClick={() => navigate('/analytics')}
+          onClick={() => navigate('/analytics', { state: { project: record } })}
           style={{ padding: 0, fontSize: '13px', color: '#084b8a' }}
         >
           IP/User Agent
@@ -181,7 +182,7 @@ const Projects = () => {
           <Button
             type="primary"
             style={{ borderRadius: '6px', fontSize: '12px', height: '32px' }}
-            onClick={() => window.open(`http://72.62.241.45:4000/p/${record.slug}`, '_blank')}
+            onClick={() => window.open(`${BASE_DOMAIN}/p/${record.slug}`, '_blank')}
           >
             Open
           </Button>
@@ -231,10 +232,20 @@ const Projects = () => {
                       -ms-overflow-style: none !important;
                       scrollbar-width: none !important;
                     }
+                    @media (max-width: 576px) {
+                        .projects-header {
+                            flex-direction: column !important;
+                            align-items: flex-start !important;
+                            gap: 16px !important;
+                        }
+                        .create-project-btn {
+                            width: 100% !important;
+                        }
+                    }
                 `}
       </style>
       {/* Page Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 32 }}>
+      <div className="projects-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 32 }}>
         <div>
           <Title level={2} style={{ margin: 0, fontSize: '28px', fontWeight: 700 }}>Projects Overview</Title>
           <Text type="secondary">Manage your tracking campaigns and monitor performance.</Text>
@@ -244,6 +255,7 @@ const Projects = () => {
           size="large"
           icon={<PlusOutlined />}
           onClick={() => navigate('/projects/new')}
+          className="create-project-btn"
           style={{
             height: '42px',
             borderRadius: '8px',

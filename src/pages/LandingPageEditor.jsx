@@ -9,8 +9,7 @@ import {
     EyeOutlined,
     CodeOutlined,
     GlobalOutlined,
-    LayoutOutlined,
-    DeleteOutlined
+    LayoutOutlined
 } from '@ant-design/icons';
 import Editor from '@monaco-editor/react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -26,7 +25,7 @@ const { useBreakpoint } = Grid;
 const LandingPageEditor = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { message, modal } = App.useApp();
+    const { message } = App.useApp();
     const screens = useBreakpoint();
     const isMobile = !screens.md;
 
@@ -37,51 +36,12 @@ const LandingPageEditor = () => {
     const [blocks, setBlocks] = useState([]);
     const [savedPages, setSavedPages] = useState([]);
 
-    const handleDelete = () => {
-        if (!id) return;
-        modal.confirm({
-            title: 'Delete this Landing Page?',
-            content: 'This action cannot be undone. Are you sure you want to delete this page?',
-            okText: 'Yes, Delete',
-            okType: 'danger',
-            cancelText: 'Cancel',
-            onOk: async () => {
-                setLoading(true);
-                try {
-                    const response = await landingPageService.deleteLandingPage(id);
-                    if (response.success) {
-                        message.success('Landing page deleted successfully');
-                        fetchSavedPages();
-                        navigate('/landing-pages/builder');
-                        setPageData(null);
-                        setBlocks([]);
-                        setHtmlCode('');
-                    }
-                } catch (error) {
-                    message.error('Failed to delete page');
-                    console.error(error);
-                } finally {
-                    setLoading(false);
-                }
-            }
-        });
-    };
 
     const fetchSavedPages = React.useCallback(async () => {
         try {
             const response = await landingPageService.getLandingPages();
             if (response.success) {
-                const uniqueByName = response.data.reduce((acc, current) => {
-                    const existing = acc.find(item => item.name === current.name);
-                    if (!existing) {
-                        acc.push(current);
-                    } else if (new Date(current.updatedAt || current.createdAt) > new Date(existing.updatedAt || existing.createdAt)) {
-                        const index = acc.indexOf(existing);
-                        acc[index] = current;
-                    }
-                    return acc;
-                }, []);
-                setSavedPages(uniqueByName);
+                setSavedPages(response.data || []);
             }
         } catch (error) {
             console.error('Failed to fetch pages:', error);
@@ -90,16 +50,10 @@ const LandingPageEditor = () => {
 
     const fetchLandingPage = React.useCallback(async () => {
         if (!id) {
-            const initialBlocks = [
-                { id: 'img-1', type: 'image', tagName: 'AVATAR', selector: '.avatar', content: { src: '', alt: 'Profile' } },
-                { id: 'txt-1', type: 'text', tagName: 'NAME', selector: '.name', content: { title: 'sabreen Ali' } },
-                { id: 'txt-2', type: 'text', tagName: 'META', selector: '.meta', content: { paragraph: '820,527 subscribers' } },
-                { id: 'txt-3', type: 'text', tagName: 'DESCRIPTION', selector: '.description', content: { paragraph: 'Join our official Telegram channel for verified updates and announcements.' } },
-                { id: 'sub-1', type: 'subscribe', tagName: 'BUTTON', selector: '.join-button', content: { buttonText: 'Join Channel', href: '' } }
-            ];
+            const initialBlocks = [];
             setBlocks(initialBlocks);
-            setHtmlCode(generateHtml(initialBlocks));
-            setPageData({ name: 'Untitled Page' });
+            setHtmlCode('');
+            setPageData({ name: 'New Page' });
             fetchSavedPages();
             return;
         }
@@ -132,7 +86,7 @@ const LandingPageEditor = () => {
         setLoading(true);
         try {
             const payload = {
-                name: pageData?.name || 'landing page',
+                name: pageData?.name || 'New Page',
                 html: htmlCode,
                 config: { blocks }
             };
@@ -160,12 +114,30 @@ const LandingPageEditor = () => {
         }
     };
 
+    const handleDownload = () => {
+        try {
+            const blob = new Blob([htmlCode], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'index.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            message.success('index.html downloaded successfully!');
+        } catch (error) {
+            console.error('Download failed:', error);
+            message.error('Failed to download index.html');
+        }
+    };
+
     const handleHtmlChange = (newHtml, newBlocks) => {
         if (newBlocks) {
             setBlocks(newBlocks);
             const updatedHtml = updateHtmlFromBlocks(htmlCode, newBlocks);
             setHtmlCode(updatedHtml);
-        } else if (newHtml) {
+        } else if (newHtml !== null && newHtml !== undefined) {
             setHtmlCode(newHtml);
         }
     };
@@ -177,30 +149,21 @@ const LandingPageEditor = () => {
     const handleUploadAndSave = async (htmlContent, fileName = 'Uploaded Page') => {
         setLoading(true);
         try {
-            const tempBlocks = parseHtmlToBlocks(htmlContent);
+            const { blocks: tempBlocks, stampedHtml } = parseHtmlToBlocks(htmlContent);
             const payload = {
-                name: fileName.replace('.html', ''),
-                html: htmlContent,
+                name: fileName,
+                html: stampedHtml,
                 config: { blocks: tempBlocks }
             };
 
-            let response;
-            if (id) {
-                response = await landingPageService.updateLandingPage(id, payload);
-            } else {
-                response = await landingPageService.createLandingPage(payload);
-            }
+            // Always create a new page when uploading a file to add it to the library
+            const response = await landingPageService.createLandingPage(payload);
 
             if (response.success) {
-                message.success(id ? 'Page updated successfully!' : `Page "${payload.name}" saved to library!`);
-                fetchSavedPages();
-                if (!id && response.data?._id) {
+                message.success(`Page "${payload.name}" saved to library!`);
+                await fetchSavedPages(); // Ensure the list is refreshed
+                if (response.data?._id) {
                     navigate(`/landing-pages/builder/${response.data._id}`);
-                }
-                if (id) {
-                    setHtmlCode(htmlContent);
-                    setBlocks(tempBlocks);
-                    setPageData(prev => ({ ...prev, ...payload }));
                 }
             }
         } catch (error) {
@@ -213,8 +176,9 @@ const LandingPageEditor = () => {
 
     const handleSelectTemplate = (templateBlocks, customHtml = null) => {
         if (customHtml) {
-            setHtmlCode(customHtml);
-            setBlocks(parseHtmlToBlocks(customHtml));
+            const { blocks: parsedBlocks, stampedHtml } = parseHtmlToBlocks(customHtml);
+            setHtmlCode(stampedHtml);
+            setBlocks(parsedBlocks);
             setPageData(prev => ({ ...prev, name: 'Uploaded Template' }));
         } else {
             setBlocks(templateBlocks);
@@ -225,7 +189,9 @@ const LandingPageEditor = () => {
 
     const handleTabChange = (tab) => {
         if (tab === 'visual' && activeTab === 'code') {
-            setBlocks(parseHtmlToBlocks(htmlCode));
+            const { blocks: parsedBlocks, stampedHtml } = parseHtmlToBlocks(htmlCode);
+            setBlocks(parsedBlocks);
+            setHtmlCode(stampedHtml);
         }
         setActiveTab(tab);
     };
@@ -298,18 +264,19 @@ const LandingPageEditor = () => {
                 )}
 
                 <Space size={isMobile ? "small" : "middle"}>
-                    {id && (
-                        <Button
-                            danger
-                            type="text"
-                            icon={<DeleteOutlined />}
-                            onClick={handleDelete}
-                            loading={loading}
-                            size={isMobile ? 'small' : 'middle'}
-                        >
-                            {isMobile ? '' : 'Delete'}
-                        </Button>
-                    )}
+                    <Button
+                        icon={<DownloadOutlined />}
+                        onClick={handleDownload}
+                        style={{
+                            background: '#2b2b3d',
+                            borderColor: 'transparent',
+                            color: '#fff',
+                            borderRadius: '4px',
+                            height: '32px'
+                        }}
+                    >
+                        {isMobile ? '' : 'Download HTML'}
+                    </Button>
                     <Button
                         type="primary"
                         icon={<SaveOutlined />}
@@ -389,92 +356,140 @@ const LandingPageEditor = () => {
         const doc = parser.parseFromString(currentHtml, 'text/html');
         currentBlocks.forEach(block => {
             if (!block.selector) return;
-            const el = doc.querySelector(block.selector);
-            if (!el) return;
-            if (block.className !== undefined) el.className = block.className;
-            if (block.type === 'image') {
-                if (block.content.src) el.setAttribute('src', block.content.src);
-                if (block.content.alt) el.setAttribute('alt', block.content.alt);
-            } else if (block.type === 'subscribe') {
-                el.textContent = block.content.buttonText;
-                if (el.tagName === 'A' && block.content.href) el.setAttribute('href', block.content.href);
-            } else if (block.type === 'text') {
-                const content = block.content.title !== undefined ? block.content.title :
-                    (block.content.paragraph !== undefined ? block.content.paragraph :
-                        (block.content.description !== undefined ? block.content.description : ''));
-                el.innerHTML = content.replace(/\n/g, '<br/>');
-            }
+            // Use querySelectorAll for safety; data-veid selectors are unique so only one match expected
+            const elements = doc.querySelectorAll(block.selector);
+            elements.forEach(el => {
+                if (block.type === 'image') {
+                    if (block.content.src !== undefined) el.setAttribute('src', block.content.src);
+                    if (block.content.alt !== undefined) el.setAttribute('alt', block.content.alt);
+                } else if (block.type === 'subscribe') {
+                    el.textContent = block.content.buttonText || '';
+                    if (el.tagName === 'A' && block.content.href) el.setAttribute('href', block.content.href);
+                } else if (block.type === 'text') {
+                    const content = block.content.title !== undefined ? block.content.title :
+                        (block.content.paragraph !== undefined ? block.content.paragraph :
+                            (block.content.description !== undefined ? block.content.description : ''));
+                    el.innerHTML = content.replace(/\n/g, '<br/>');
+                }
+            });
         });
         return '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
     };
 
     const parseHtmlToBlocks = (html) => {
+        if (!html) return { blocks: [], stampedHtml: html };
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
         const extractedBlocks = [];
-        doc.querySelectorAll('img, .avatar').forEach((img, index) => {
-            const src = img.getAttribute('src');
-            const selector = img.id ? `#${img.id}` :
-                img.className ? `img.${img.className.split(' ')[0]}` :
-                    `img:nth-of-type(${index + 1})`;
+        let veIdCounter = 0;
+
+        // Helper: assign a unique data-veid to an element and return its selector
+        const stamp = (el) => {
+            const existingId = el.getAttribute('data-veid');
+            if (existingId) return `[data-veid="${existingId}"]`;
+            const veid = `ve-${veIdCounter++}`;
+            el.setAttribute('data-veid', veid);
+            return `[data-veid="${veid}"]`;
+        };
+
+        // --- Images ---
+        doc.querySelectorAll('img').forEach((img, index) => {
+            const selector = stamp(img);
             extractedBlocks.push({
                 id: `img-${Date.now()}-${index}`,
                 type: 'image',
                 tagName: img.classList.contains('avatar') ? 'AVATAR' : 'IMAGE',
-                selector: selector,
+                selector,
                 className: img.className || '',
-                content: { src: src || '', alt: img.alt || '' }
+                content: { src: img.getAttribute('src') || '', alt: img.alt || '' }
             });
         });
-        doc.querySelectorAll('h1, h2, h3, h4, h5, h6, p, a, button, div, span, .join-button').forEach((el, index) => {
+
+        // --- Text / Button elements ---
+        // Broad selector to catch all meaningful leaf-level elements
+        const TEXT_TAGS = 'h1,h2,h3,h4,h5,h6,p,a,button,span,div,li';
+        const BLOCK_CHILD_TAGS = new Set(['DIV', 'P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'LI', 'TABLE', 'FORM', 'BLOCKQUOTE', 'SECTION', 'ARTICLE', 'HEADER', 'FOOTER', 'NAV']);
+
+        doc.querySelectorAll(TEXT_TAGS).forEach((el, index) => {
+            // Skip elements already stamped as images
+            if (el.tagName === 'IMG') return;
+            // Skip elements that are purely structural wrappers (contain block-level children)
+            // UNLESS they have a known content class
+            const isKnownContentClass =
+                el.classList.contains('profile-name') ||
+                el.classList.contains('profile-subscribers') ||
+                el.classList.contains('profile-description') ||
+                el.classList.contains('name') ||
+                el.classList.contains('meta') ||
+                el.classList.contains('subscriber-count') ||
+                el.classList.contains('description') ||
+                el.classList.contains('desc') ||
+                el.classList.contains('join-button') ||
+                el.id === 'telegram_join_btn';
+
+            const hasBlockChildren = Array.from(el.children).some(child =>
+                BLOCK_CHILD_TAGS.has(child.tagName)
+            );
+            if (hasBlockChildren && !isKnownContentClass) return;
+
+            // Skip image containers
+            if (el.classList.contains('image-container')) return;
+            // Skip elements containing images/SVGs (unless known content class)
+            if (!isKnownContentClass && el.querySelector('img, svg')) return;
+
             const text = el.textContent.trim();
             if (!text) return;
-            const containsImageOrSvg = el.querySelector('img, svg') !== null;
-            const isStructuralOnlyClass = el.classList.contains('image-container') || el.classList.contains('avatar');
-            if ((isStructuralOnlyClass || containsImageOrSvg) && !text) return;
-            const hasBlockChildren = Array.from(el.children).some(child =>
-                ['DIV', 'P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'LI', 'TABLE', 'FORM', 'BLOCKQUOTE', 'SECTION', 'ARTICLE', 'HEADER', 'FOOTER', 'NAV'].includes(child.tagName)
-            );
-            const isKnownClass = el.classList.contains('name') || el.classList.contains('meta') || el.classList.contains('profile-description') || el.classList.contains('subscriber-count') || el.classList.contains('description') || el.classList.contains('desc');
-            if (hasBlockChildren && !isKnownClass) return;
-            const type = (el.tagName === 'A' || el.tagName === 'BUTTON' || el.id === 'telegram_join_btn' || el.classList.contains('join-button')) ? 'subscribe' : 'text';
+
+            // Determine block type
+            const isButton = el.tagName === 'A' || el.tagName === 'BUTTON' ||
+                el.id === 'telegram_join_btn' || el.classList.contains('join-button');
+            const type = isButton ? 'subscribe' : 'text';
+
+            // Determine display tag name for labelling in the editor
             let displayTagName = el.tagName;
-            if (el.classList.contains('name') || el.tagName === 'H1') displayTagName = 'NAME';
-            else if (el.classList.contains('meta') || el.classList.contains('subscriber-count')) displayTagName = 'META';
-            else if (el.classList.contains('profile-description') || el.classList.contains('description') || el.classList.contains('desc')) displayTagName = 'DESCRIPTION';
-            else if (el.classList.contains('join-button') || el.id === 'telegram_join_btn') displayTagName = 'BUTTON';
-            let selector = '';
-            if (el.id) selector = `#${el.id}`;
-            else if (el.className && typeof el.className === 'string' && el.className.split(' ')[0]) {
-                const firstClass = el.className.split(' ')[0];
-                selector = `.${firstClass}:nth-of-type(${Array.from(doc.querySelectorAll(`.${firstClass}`)).indexOf(el) + 1})`;
-            } else {
-                selector = `${el.tagName.toLowerCase()}:nth-of-type(${Array.from(doc.querySelectorAll(el.tagName)).indexOf(el) + 1})`;
+            if (el.classList.contains('profile-name') || el.classList.contains('name') || el.tagName === 'H1') {
+                displayTagName = 'NAME';
+            } else if (el.classList.contains('profile-subscribers') || el.classList.contains('meta') || el.classList.contains('subscriber-count')) {
+                displayTagName = 'META';
+            } else if (el.classList.contains('profile-description') || el.classList.contains('description') || el.classList.contains('desc')) {
+                displayTagName = 'DESCRIPTION';
+            } else if (isButton) {
+                displayTagName = 'BUTTON';
             }
+
+            const selector = stamp(el);
+
             extractedBlocks.push({
                 id: `${type}-${Date.now()}-${index}`,
-                type: type,
+                type,
                 tagName: displayTagName,
-                selector: selector,
-                className: el.className || '',
+                selector,
+                className: (typeof el.className === 'string' ? el.className : '') || '',
                 content: {
-                    title: (displayTagName === 'NAME') ? text : undefined,
-                    paragraph: (displayTagName === 'META' || (displayTagName !== 'NAME' && displayTagName !== 'DESCRIPTION' && type === 'text')) ? text : undefined,
-                    description: (displayTagName === 'DESCRIPTION') ? text : undefined,
+                    title: displayTagName === 'NAME' ? text : undefined,
+                    paragraph: (displayTagName !== 'NAME' && displayTagName !== 'DESCRIPTION' && type === 'text') ? text : undefined,
+                    description: displayTagName === 'DESCRIPTION' ? text : undefined,
                     buttonText: type === 'subscribe' ? text : undefined,
                     href: (el.tagName === 'A' || el.classList.contains('join-button')) ? el.getAttribute('href') : undefined
                 }
             });
         });
+
         if (extractedBlocks.length === 0) {
-            extractedBlocks.push({
-                id: 'custom-1',
-                type: 'text',
-                tagName: 'H1',
-                content: { title: 'Custom HTML Loaded', paragraph: 'Edit in Code mode for full control.' }
-            });
+            return {
+                blocks: [{
+                    id: 'custom-1',
+                    type: 'text',
+                    tagName: 'H1',
+                    content: { title: 'Custom HTML Loaded', paragraph: 'Edit in Code mode for full control.' }
+                }],
+                stampedHtml: html
+            };
         }
-        return extractedBlocks;
+
+        // Serialize the stamped DOM back to HTML so selectors are embedded
+        const stampedHtml = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+        return { blocks: extractedBlocks, stampedHtml };
     };
 
     const injectErrorSuppression = (html) => {
@@ -592,6 +607,7 @@ const LandingPageEditor = () => {
                             onSelectTemplate={handleSelectTemplate}
                             onUpload={handleUploadAndSave}
                             myPages={savedPages}
+                            onSelectPage={(pageId) => navigate(`/landing-pages/builder/${pageId}`)}
                         />
                     </Sider>
                 )}

@@ -113,13 +113,15 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
         bottom: 0,
         backgroundColor: '#084b8a',
         zIndex: 1002,
-        boxShadow: '4px 0 24px rgba(0,0,0,0.05)'
+        boxShadow: '4px 0 24px rgba(0,0,0,0.05)',
+        paddingBottom: '40px'
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <Menu
           mode="inline"
           selectedKeys={[location.pathname]}
+          defaultOpenKeys={['/integrations']}
           inlineCollapsed={collapsed}
           style={{
             flex: 1,

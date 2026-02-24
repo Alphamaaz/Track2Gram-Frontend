@@ -21,7 +21,7 @@ const { Option } = Select;
 const ProjectConfiguration = () => {
     const navigate = useNavigate();
     const { id } = useParams();
-    const { message } = App.useApp();
+    const { message, modal } = App.useApp();
     const [loading, setLoading] = useState(false);
     const [templates, setTemplates] = useState([]);
 
@@ -90,6 +90,30 @@ const ProjectConfiguration = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleDelete = () => {
+        modal.confirm({
+            title: 'Delete Project',
+            content: `Are you sure you want to delete "${formData.name}"? This action cannot be undone.`,
+            okText: 'Delete',
+            okType: 'danger',
+            cancelText: 'Cancel',
+            onOk: async () => {
+                setLoading(true);
+                try {
+                    const response = await projectService.deleteProject(id);
+                    if (response.success) {
+                        message.success('Project deleted successfully');
+                        navigate('/projects');
+                    }
+                } catch (error) {
+                    message.error(error.message || 'Failed to delete project');
+                } finally {
+                    setLoading(false);
+                }
+            }
+        });
     };
 
     const cardStyle = {
@@ -272,7 +296,17 @@ const ProjectConfiguration = () => {
                     </Card>
 
                     {/* Bottom Actions */}
-                    <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end', marginTop: '32px' }}>
+                    <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end', marginTop: '32px', alignItems: 'center' }}>
+                        {id && id !== 'new' && (
+                            <Button
+                                danger
+                                type="text"
+                                onClick={handleDelete}
+                                style={{ height: '48px', borderRadius: '8px', padding: '0 24px', marginRight: 'auto', fontWeight: 500 }}
+                            >
+                                Delete Project
+                            </Button>
+                        )}
                         <Button
                             onClick={() => navigate('/projects')}
                             style={{ height: '48px', borderRadius: '8px', padding: '0 32px' }}

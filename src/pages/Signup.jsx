@@ -1,4 +1,4 @@
-import { Form, Input, Button, Divider, Typography, Row, Col, message } from 'antd'
+import { Form, Input, Button, Divider, Typography, Row, Col, App } from 'antd'
 import { Link, useNavigate } from 'react-router-dom'
 import loginImage from '../assets/login.png'
 import logo from '../assets/tyy 1.svg'
@@ -8,6 +8,7 @@ import { useState } from 'react'
 const { Title, Text } = Typography
 
 export const Signup = () => {
+  const { message } = App.useApp()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
 
@@ -46,7 +47,7 @@ export const Signup = () => {
         {/* Left Side - Form */}
         <Col xs={24} md={12} className="signup-form-col">
           <div style={{ marginBottom: '32px' }}>
-            <img src={logo} alt="Track Bridge" style={{ height: '64px', marginBottom: '24px', filter: 'drop-shadow(0px 0px 0px #084b8a) grayscale(100%) brightness(50%) sepia(100%) hue-rotate(175deg) saturate(300%)' }} />
+            <img src={logo} alt="Track2Gram" style={{ height: '64px', marginBottom: '24px', filter: 'drop-shadow(0px 0px 0px #084b8a) grayscale(100%) brightness(50%) sepia(100%) hue-rotate(175deg) saturate(300%)' }} />
             <Title level={2} style={{ margin: 0, fontWeight: 800, background: 'linear-gradient(45deg, #084b8a, #0a5a9e)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Get started</Title>
             <Text style={{ color: '#000000', opacity: 0.85, fontSize: '16px' }}>Create your account to start tracking</Text>
           </div>
@@ -106,7 +107,7 @@ export const Signup = () => {
           <div style={{ position: 'absolute', top: '-50%', right: '-50%', width: '100%', height: '100%', background: 'radial-gradient(circle, rgba(8, 75, 138, 0.1) 0%, rgba(255,255,255,0) 70%)', transform: 'scale(1.5)' }}></div>
           <img
             src={loginImage}
-            alt="Track Bridge illustration"
+            alt="Track2Gram illustration"
             style={{ maxWidth: '100%', maxHeight: '500px', objectFit: 'contain', position: 'relative', zIndex: 1 }}
           />
         </Col>

@@ -1,209 +1,280 @@
-import React, { useState } from 'react'
-import { Card, Row, Col, Typography, Table, Tag, DatePicker, Space, Input, Select } from 'antd'
-import { ArrowUpOutlined, ArrowDownOutlined, CalendarOutlined, SearchOutlined } from '@ant-design/icons'
+import React, { useState, useEffect, useCallback } from 'react'
+import { Card, Row, Col, Typography, Table, Tag, DatePicker, Space, Input, Select, Skeleton, App, Empty, Button } from 'antd'
+import { ArrowUpOutlined, ArrowDownOutlined, SearchOutlined, DatabaseOutlined, ProjectOutlined } from '@ant-design/icons'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import dayjs from 'dayjs'
+import projectService from '../services/project'
+import { useNavigate } from 'react-router-dom'
 
 const { Title, Text } = Typography
+const { RangePicker } = DatePicker
 
 const Dashboard = () => {
-  const [searchText, setSearchText] = useState('')
-  const [platformFilter, setPlatformFilter] = useState('All')
+  const navigate = useNavigate()
+  const { message } = App.useApp()
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState(null)
+  const [chartData, setChartData] = useState([])
+  const [projects, setProjects] = useState([])
+  const [platformFilter, setPlatformFilter] = useState('all')
+  const [dateRange, setDateRange] = useState([dayjs().subtract(30, 'days'), dayjs()])
 
-  const stats = [
-    { title: 'Total Visits', value: '12,345', change: '+12%', positive: true },
-    { title: 'Total Clicks', value: '8,765', change: '+8%', positive: true },
-    { title: 'Subscriptions', value: '3,456', change: '+12%', positive: true },
-    { title: 'Unsubscriptions', value: '1,234', change: '-5%', positive: false },
+  const fetchDashboardData = useCallback(async () => {
+    setLoading(true)
+    const startDate = dateRange[0]?.format('YYYY-MM-DD')
+    const endDate = dateRange[1]?.format('YYYY-MM-DD')
+    const platform = platformFilter === 'All' ? 'all' : platformFilter.toLowerCase()
+
+    try {
+      const [statsRes, chartRes, projectsRes] = await Promise.all([
+        projectService.getDashboardStats(platform, startDate, endDate),
+        projectService.getDashboardChart(platform, startDate, endDate),
+        projectService.getProjects()
+      ])
+
+      if (statsRes.success) setStats(statsRes.data)
+
+      if (chartRes.success && chartRes.data.chart) {
+        const { xAxis, series } = chartRes.data.chart
+        const formattedData = xAxis.values.map((val, idx) => {
+          const entry = { name: val }
+          series.forEach(s => {
+            entry[s.key] = s.values[idx] || 0
+          })
+          return entry
+        })
+        setChartData(formattedData)
+      }
+
+      if (projectsRes.success) setProjects(projectsRes.data)
+    } catch (error) {
+      console.error('Dashboard fetch error:', error)
+      message.error(error?.message || 'Failed to load dashboard data')
+    } finally {
+      setLoading(false)
+    }
+  }, [dateRange, platformFilter, message])
+
+  useEffect(() => {
+    fetchDashboardData()
+  }, [fetchDashboardData])
+
+  const statCards = [
+    { title: 'Total Visits', value: stats?.visitors || 0, color: 'rgba(8, 75, 138, 0.08)', icon: <SearchOutlined /> },
+    { title: 'Total Clicks', value: stats?.clicks || 0, color: 'rgba(8, 75, 138, 0.08)', icon: <ArrowUpOutlined /> },
+    { title: 'Subscriptions', value: stats?.subscribers || 0, color: 'rgba(8, 75, 138, 0.08)', icon: <ProjectOutlined /> },
+    { title: 'Unsubscriptions', value: stats?.unsubscribers || 0, color: 'rgba(8, 75, 138, 0.08)', icon: <ArrowDownOutlined /> },
   ]
 
   const columns = [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
-    { title: 'PROJECT NAME', dataIndex: 'name', key: 'name', render: (text) => <Text strong>{text}</Text> },
-    { title: 'VISITS', dataIndex: 'visits', key: 'visits' },
-    { title: 'CLICKS', dataIndex: 'clicks', key: 'clicks' },
-    { title: 'CLIENT', dataIndex: 'client', key: 'client', render: (text) => <Text style={{ color: '#084b8a', cursor: 'pointer', fontWeight: '500' }}>{text}</Text> },
-    { title: 'SUBSCRIBERS', dataIndex: 'subscriptions', key: 'subscriptions', render: (text) => <Text type="secondary">{text}</Text> },
-    { title: 'UNSUBSCRIBERS', dataIndex: 'unsubscriptions', key: 'unsubscriptions', render: (text) => <Text type="secondary">{text}</Text> },
-    { title: 'PLATFORM', dataIndex: 'platform', key: 'platform', render: (text) => <Text style={{ color: text === 'Google Ads' ? '#084b8a' : '#6366F1', fontWeight: 'bold' }}>{text}</Text> },
+    {
+      title: 'PROJECT NAME',
+      dataIndex: 'name',
+      key: 'name',
+      render: (text, record) => (
+        <Space onClick={() => navigate(`/analytics?projectId=${record._id}`)} style={{ cursor: 'pointer' }}>
+          <div style={{ width: '32px', height: '32px', background: '#f1f5f9', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ProjectOutlined style={{ color: '#64748b' }} />
+          </div>
+          <Text strong style={{ color: '#1e293b' }}>{text}</Text>
+        </Space>
+      )
+    },
+    {
+      title: 'AD PLATFORMS',
+      dataIndex: 'adPlatforms',
+      key: 'platforms',
+      render: (platforms) => (
+        <Space size={4}>
+          {platforms?.map(p => (
+            <Tag key={p} color={p === 'google' ? 'blue' : 'purple'} style={{ borderRadius: '6px', fontSize: '11px', textTransform: 'capitalize' }}>
+              {p}
+            </Tag>
+          ))}
+        </Space>
+      )
+    },
+    {
+      title: 'SOURCE',
+      dataIndex: 'landingPageSource',
+      key: 'source',
+      render: (source) => <Tag style={{ borderRadius: '6px', fontSize: '11px' }}>{source === 'template' ? 'In-house' : 'External URL'}</Tag>
+    },
     {
       title: 'STATUS',
       dataIndex: 'status',
       key: 'status',
-      render: (status) => (
-        <Tag color={status === 'Active' ? 'default' : '#f5f5f5'} style={{ borderRadius: '12px', padding: '0 12px', fontWeight: 'bold', color: status === 'Active' ? '#475569' : '#94A3B8', border: 'none' }}>
-          {status.toUpperCase()}
+      align: 'right',
+      render: () => (
+        <Tag color="success" style={{ borderRadius: '12px', padding: '0 12px', fontWeight: 'bold', border: 'none' }}>
+          ACTIVE
         </Tag>
       ),
     },
   ]
 
-  const data = [
-    { key: '1', id: 1, name: 'Project Alpha', visits: 87, clicks: 29, client: 'Client A', subscriptions: 12, unsubscriptions: 2, platform: 'Google Ads', status: 'Active' },
-    { key: '2', id: 2, name: 'Meta Campaign X', visits: 156, clicks: 42, client: 'Client B', subscriptions: 24, unsubscriptions: 1, platform: 'Meta Ads', status: 'Active' },
-    { key: '3', id: 3, name: 'Crypto Leads', visits: 45, clicks: 12, client: 'Client C', subscriptions: 5, unsubscriptions: 8, platform: 'Google Ads', status: 'Inactive' },
-    { key: '4', id: 4, name: 'Real Estate 2024', visits: 230, clicks: 98, client: 'Client D', subscriptions: 45, unsubscriptions: 3, platform: 'Meta Ads', status: 'Active' },
-    { key: '5', id: 6, name: 'E-commerce Sale', visits: 540, clicks: 120, client: 'Client A', subscriptions: 67, unsubscriptions: 5, platform: 'Google Ads', status: 'Active' },
-    { key: '6', id: 7, name: 'SaaS Beta', visits: 92, clicks: 15, client: 'Client B', subscriptions: 8, unsubscriptions: 0, platform: 'Meta Ads', status: 'Active' },
-  ]
-
-  const filteredData = data.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchText.toLowerCase())
-    const matchesPlatform = platformFilter === 'All' || item.platform === platformFilter
-    return matchesSearch && matchesPlatform
-  })
+  const filteredProjects = projects;
 
   return (
-    <div style={{ padding: '0 0 40px 0' }}>
-      <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-        <Title level={4} style={{ margin: 0 }}>Dashboard</Title>
+    <div style={{ padding: '0 clamp(12px, 3vw, 24px)', paddingBottom: '40px', maxWidth: '1600px', margin: '0 auto' }}>
+      <div className="dashboard-header" style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
+        <div>
+          <Title level={2} style={{ margin: 0, fontWeight: 800, letterSpacing: '-0.02em', color: '#0f172a' }}>Global Dashboard</Title>
+          <Text style={{ color: '#64748b' }}>Real-time overview of all your tracking campaigns.</Text>
+        </div>
         <Space size="middle" wrap>
-          <Input
-            placeholder="Search projects..."
-            prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
-            style={{ borderRadius: '8px', width: '250px' }}
-            onChange={(e) => setSearchText(e.target.value)}
-          />
           <Select
             defaultValue="All"
-            style={{ width: 150, borderRadius: '8px' }}
+            style={{ width: 160 }}
             onChange={setPlatformFilter}
             options={[
               { value: 'All', label: 'All Platforms' },
-              { value: 'Google Ads', label: 'Google Ads' },
-              { value: 'Meta Ads', label: 'Meta Ads' },
+              { value: 'google', label: 'Google Ads' },
+              { value: 'meta', label: 'Meta Ads' },
             ]}
           />
-          <DatePicker placeholder="Start Date" suffixIcon={<CalendarOutlined />} style={{ borderRadius: '8px' }} />
-          <DatePicker placeholder="End Date" suffixIcon={<CalendarOutlined />} style={{ borderRadius: '8px' }} />
+          <RangePicker
+            value={dateRange}
+            onChange={setDateRange}
+            style={{ borderRadius: '8px', padding: '8px 12px' }}
+          />
         </Space>
       </div>
 
-      {/* Stats Grid */}
-      <Row gutter={[24, 24]} style={{ marginBottom: '32px' }}>
-        {stats.map((stat, index) => (
-          <Col xs={24} sm={12} xl={6} key={index}>
-            <Card
-              variant="borderless"
-              style={{
-                background: 'rgba(8, 75, 138, 0.08)',
-                borderRadius: '16px',
-                height: '100%',
-                border: '1px solid rgba(8, 75, 138, 0.12)'
-              }}
-              styles={{ body: { padding: '24px' } }}
-            >
-              <Text style={{ fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#000000' }}>
-                {stat.title}
-              </Text>
-              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: '12px' }}>
-                <div>
-                  <Title level={2} style={{ margin: 0, fontWeight: 800, color: '#000000' }}>{stat.value}</Title>
-                  <Space style={{ color: stat.positive ? '#10B981' : '#EF4444', fontWeight: 'bold', fontSize: '14px', marginTop: '4px' }}>
-                    {stat.positive ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
-                    {stat.change}
-                  </Space>
-                </div>
-              </div>
-            </Card>
-          </Col>
-        ))}
-      </Row>
-
-      {/* Chart Section */}
-      <Card
-        variant="borderless"
-        style={{ borderRadius: '24px', marginBottom: '32px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}
-        styles={{ body: { padding: '32px' } }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <Text strong style={{ color: '#64748B', display: 'block', marginBottom: '4px' }}>Campaign Performance Trend</Text>
-            <Space align="baseline">
-              <Title level={2} style={{ margin: 0, fontWeight: 900 }}>+15.3%</Title>
-              <Text style={{ color: '#10B981', fontWeight: 'bold' }}>Monthly Growth</Text>
-            </Space>
-          </div>
-          <Space wrap>
-            <Tag color="black">Meta Ads</Tag>
-            <Tag color="black">Google Ads</Tag>
-          </Space>
-        </div>
-
-        {/* Simplified Wave Chart using SVG */}
-        <div style={{ height: '280px', width: '100%', position: 'relative' }}>
-          <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 800 200" style={{ overflow: 'visible' }}>
-            <defs>
-              <linearGradient id="chartGradient" x1="0" y2="1" x2="0" y1="0">
-                <stop offset="0%" stopColor="#084b8a" stopOpacity="0.15" />
-                <stop offset="100%" stopColor="#084b8a" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-            <path
-              d="M 0 150 C 50 130, 100 170, 150 110 C 200 50, 250 130, 300 90 C 350 50, 400 140, 450 120 C 500 100, 550 170, 600 150 C 650 130, 700 40, 750 70 C 800 100, 800 200, 0 200 Z"
-              fill="url(#chartGradient)"
-            />
-            <path
-              d="M 0 150 C 50 130, 100 170, 150 110 C 200 50, 250 130, 300 90 C 350 50, 400 140, 450 120 C 500 100, 550 170, 600 150 C 650 130, 700 40, 750 70"
-              fill="none"
-              stroke="#084b8a"
-              strokeWidth="3"
-              strokeLinecap="round"
-            />
-          </svg>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '24px', padding: '0 8px' }}>
-            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-              <Text key={day} style={{ fontSize: '11px', fontWeight: 'bold', color: '#94A3B8' }}>{day}</Text>
+      {loading ? (
+        <Skeleton active paragraph={{ rows: 12 }} />
+      ) : (
+        <>
+          {/* Stats Grid */}
+          <Row gutter={[20, 20]} style={{ marginBottom: '32px' }}>
+            {statCards.map((stat, index) => (
+              <Col xs={12} sm={12} xl={6} key={index}>
+                <Card
+                  variant="borderless"
+                  style={{
+                    background: 'rgba(8, 75, 138, 0.04)',
+                    borderRadius: '20px',
+                    height: '100%',
+                    border: '1px solid rgba(8, 75, 138, 0.08)'
+                  }}
+                  styles={{ body: { padding: '24px' } }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <Text style={{ fontSize: '13px', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: '8px' }}>
+                        {stat.title}
+                      </Text>
+                      <Title level={2} style={{ margin: 0, fontWeight: 800, color: '#0f172a' }}>
+                        {stat.value}
+                      </Title>
+                    </div>
+                    <div style={{ width: '40px', height: '40px', background: stat.color, borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {React.cloneElement(stat.icon, { style: { color: '#084b8a', fontSize: '18px' } })}
+                    </div>
+                  </div>
+                </Card>
+              </Col>
             ))}
-          </div>
-        </div>
-      </Card>
+          </Row>
 
-      {/* Projects Table */}
-      <div className="projects-table-container">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', padding: '0 8px' }}>
-          <Title level={4} style={{ margin: 0 }}>Active Tracking Projects</Title>
-          <Text type="secondary">{filteredData.length} items found</Text>
-        </div>
-        <Card
-          variant="borderless"
-          style={{ borderRadius: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', overflow: 'hidden' }}
-          styles={{ body: { padding: 0 } }}
-        >
-          <Table
-            columns={columns}
-            dataSource={filteredData}
-            pagination={{ pageSize: 5 }}
-            scroll={{ x: 'max-content' }}
-            rowClassName={() => 'hover-row'}
-          />
-        </Card>
-      </div>
+          {/* Chart Section */}
+          <Card
+            variant="borderless"
+            style={{ borderRadius: '24px', marginBottom: '32px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.03)', background: '#fff' }}
+            styles={{ body: { padding: 'clamp(16px, 3vw, 32px)' } }}
+            title={
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text strong style={{ color: '#1e293b', fontSize: '16px' }}>Performance Overview</Text>
+                <Space>
+                  <Tag color="processing" style={{ borderRadius: '6px' }}>Live Data</Tag>
+                </Space>
+              </div>
+            }
+          >
+            <div style={{ height: '350px', width: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorGoogle" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#084b8a" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#084b8a" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorMeta" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }} />
+                  <Legend verticalAlign="top" height={36} iconType="circle" />
+                  <Area name="Google Ads" type="monotone" dataKey="google" stroke="#084b8a" strokeWidth={3} fillOpacity={1} fill="url(#colorGoogle)" />
+                  <Area name="Meta Ads" type="monotone" dataKey="meta" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorMeta)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+
+          {/* Projects Table */}
+          <div className="projects-table-container">
+            <Card
+              title={<Text strong style={{ fontSize: '16px', color: '#1e293b' }}>Active Tracking Projects</Text>}
+              variant="borderless"
+              style={{ borderRadius: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', background: '#fff' }}
+              styles={{ body: { padding: '8px 0' } }}
+              extra={<Button type="link" onClick={() => navigate('/projects')}>View All</Button>}
+            >
+              <Table
+                columns={columns}
+                dataSource={filteredProjects}
+                pagination={{ pageSize: 5, hideOnSinglePage: true }}
+                scroll={{ x: 'max-content' }}
+                rowClassName="premium-row"
+                locale={{ emptyText: <Empty description="No projects found" /> }}
+              />
+            </Card>
+          </div>
+        </>
+      )}
 
       <style>
         {`
+          .premium-row:hover {
+            background-color: #f8fafc !important;
+          }
           .ant-table-thead > tr > th {
+            background: #f8fafc !important;
+            color: #64748b !important;
+            font-weight: 600 !important;
             font-size: 11px !important;
-            font-weight: 900 !important;
-            color: #ffffff !important;
             text-transform: uppercase !important;
-            letter-spacing: 0.1em !important;
-            padding: 20px 24px !important;
-            border-bottom: 1px solid #f0f0f0 !important;
+            letter-spacing: 0.05em !important;
+            border-bottom: 1px solid #f1f5f9 !important;
+            padding: 16px 24px !important;
           }
           .ant-table-tbody > tr > td {
             padding: 16px 24px !important;
-            border-bottom: 1px solid #f5f5f5 !important;
-            font-size: 13px !important;
+            border-bottom: 1px solid #f1f5f9 !important;
           }
-          .hover-row:hover {
-            background-color: #fafafa !important;
+          .ant-table-wrapper .ant-table-container {
+             border-radius: 0 !important;
           }
-          /* Hide scrollbar under table as requested */
-          .ant-table-body::-webkit-scrollbar {
-            display: none !important;
-          }
-          .ant-table-content {
-            scrollbar-width: none !important;
-            -ms-overflow-style: none !important;
+          @media (max-width: 576px) {
+            .dashboard-header {
+              flex-direction: column !important;
+              align-items: flex-start !important;
+              gap: 16px !important;
+            }
+            .dashboard-header .ant-space {
+              width: 100% !important;
+            }
+            .dashboard-header .ant-select {
+              width: 100% !important;
+            }
+            .dashboard-header .ant-picker {
+              width: 100% !important;
+            }
           }
         `}
       </style>
@@ -211,4 +282,4 @@ const Dashboard = () => {
   )
 }
 
-export default Dashboard
+export default Dashboard;

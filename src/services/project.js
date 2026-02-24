@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://72.62.241.45:4000/api';
+import { API_BASE_URL } from '../config';
 
 /**
  * Common request handler to handle fetch responses and errors
@@ -81,6 +81,65 @@ export const projectService = {
         return request(`/projects/${id}`, {
             method: 'DELETE',
         });
+    },
+
+    /**
+     * Get project statistics
+     */
+    getStats: (projectId, startDate, endDate) => {
+        const query = new URLSearchParams();
+        if (startDate) query.append('startDate', startDate);
+        if (endDate) query.append('endDate', endDate);
+        return request(`/projects/${projectId}/stats?${query.toString()}`);
+    },
+
+    /**
+     * Get subscriptions chart data
+     */
+    getSubscriptionsChart: (projectId, startDate, endDate) => {
+        const query = new URLSearchParams();
+        if (startDate) query.append('startDate', startDate);
+        if (endDate) query.append('endDate', endDate);
+        return request(`/projects/${projectId}/subscriptions-chart?${query.toString()}`);
+    },
+
+    /**
+     * Get performance report
+     */
+    getPerformanceReport: (projectId) => {
+        return request(`/projects/${projectId}/performance-report`);
+    },
+
+    /**
+     * Get activity log
+     */
+    getActivityLog: (projectId, startDate, endDate, page = 1, limit = 20) => {
+        const query = new URLSearchParams({ page: page.toString(), limit: limit.toString() });
+        if (startDate) query.append('startDate', startDate);
+        if (endDate) query.append('endDate', endDate);
+        return request(`/projects/${projectId}/activity-log?${query.toString()}`);
+    },
+
+    /**
+     * Get global dashboard statistics
+     */
+    getDashboardStats: (platform, startDate, endDate) => {
+        const query = new URLSearchParams();
+        if (platform) query.append('platform', platform);
+        if (startDate) query.append('startDate', startDate);
+        if (endDate) query.append('endDate', endDate);
+        return request(`/projects/dashboard/stats?${query.toString()}`);
+    },
+
+    /**
+     * Get global dashboard chart data
+     */
+    getDashboardChart: (platform, startDate, endDate) => {
+        const query = new URLSearchParams();
+        if (platform) query.append('platform', platform);
+        if (startDate) query.append('startDate', startDate);
+        if (endDate) query.append('endDate', endDate);
+        return request(`/projects/dashboard/chart?${query.toString()}`);
     }
 };
 

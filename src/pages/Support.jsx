@@ -26,7 +26,7 @@ const Support = () => {
         <div style={{ padding: '0px' }}>
             <div style={{ marginBottom: '32px' }}>
                 <Title level={2} style={{ margin: 0, color: '#1e293b' }}>Help & Support</Title>
-                <Paragraph type="secondary">We're here to help you get the most out of Track Bridge.</Paragraph>
+                <Paragraph type="secondary">We're here to help you get the most out of Track2Gram.</Paragraph>
             </div>
 
             <Row gutter={[24, 24]}>
@@ -114,7 +114,7 @@ const Support = () => {
                                     <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>EMAIL US</Text>
                                     <Space>
                                         <MailOutlined style={{ color: '#084b8a' }} />
-                                        <Text strong>support@trackbridge.com</Text>
+                                        <Text strong>support@track2gram.com</Text>
                                     </Space>
                                 </div>
                                 <div>

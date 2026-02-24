@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://72.62.241.45:4000/api';
+import { API_BASE_URL } from '../config';
 
 /**
  * Common request handler to handle fetch responses and errors

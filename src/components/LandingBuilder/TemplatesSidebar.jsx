@@ -10,23 +10,21 @@ import {
 
 const { Title, Text } = Typography;
 
-const TemplatesSidebar = ({ onSelectTemplate, onUpload, myPages = [] }) => {
+const TemplatesSidebar = ({ onSelectTemplate, onUpload, myPages = [], onSelectPage }) => {
 
 
-    const handleFileUpload = (info) => {
-        const file = info.file;
-        if (file.status === 'done' || file.originFileObj) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const content = e.target.result;
-                if (onUpload) {
-                    onUpload(content, file.name);
-                } else {
-                    onSelectTemplate(null, content);
-                }
-            };
-            reader.readAsText(file.originFileObj || file);
-        }
+    const handleBeforeUpload = (file) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const content = e.target.result;
+            if (onUpload) {
+                onUpload(content, file.name);
+            } else if (onSelectTemplate) {
+                onSelectTemplate(null, content);
+            }
+        };
+        reader.readAsText(file);
+        return false; // Prevent automatic upload
     };
 
     return (
@@ -56,8 +54,9 @@ const TemplatesSidebar = ({ onSelectTemplate, onUpload, myPages = [] }) => {
                     onChange={(val) => {
                         if (val.startsWith('page_')) {
                             const pageId = val.replace('page_', '');
-                            const page = myPages.find(p => p._id === pageId);
-                            if (page) {
+                            if (onSelectPage) {
+                                onSelectPage(pageId);
+                            } else {
                                 window.location.href = `/landing-pages/builder/${pageId}`;
                             }
                         }
@@ -68,7 +67,6 @@ const TemplatesSidebar = ({ onSelectTemplate, onUpload, myPages = [] }) => {
                             options: myPages.map(p => ({ label: p.name || 'Untitled', value: `page_${p._id}` }))
                         }
                     ]}
-                    styles={{ popup: { root: { borderRadius: '8px' } } }}
                 />
             </div>
 
@@ -76,8 +74,7 @@ const TemplatesSidebar = ({ onSelectTemplate, onUpload, myPages = [] }) => {
                 <Text style={{ color: '#fff', display: 'block', marginBottom: '12px', fontSize: '16px', fontWeight: 500 }}>Upload index.html</Text>
                 <Upload
                     showUploadList={false}
-                    beforeUpload={() => false}
-                    onChange={handleFileUpload}
+                    beforeUpload={handleBeforeUpload}
                 >
                     <Button
                         icon={<CloudUploadOutlined style={{ fontSize: '20px' }} />}

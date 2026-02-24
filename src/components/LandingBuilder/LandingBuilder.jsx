@@ -141,7 +141,7 @@ const LandingBuilder = ({ onHtmlChange, initialBlocks = [] }) => {
                         )}
                         {block.content.paragraph !== undefined && (
                             <div>
-                                <Text style={{ color: '#8c8c9e', fontSize: '11px', marginBottom: '4px', display: 'block' }}>META / SUBTITLE</Text>
+                                <Text style={{ color: '#8c8c9e', fontSize: '11px', marginBottom: '4px', display: 'block' }}></Text>
                                 <TextArea
                                     value={block.content.paragraph || ''}
                                     onChange={(e) => handleInputChange(block.id, 'paragraph', e.target.value)}

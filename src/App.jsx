@@ -19,6 +19,7 @@ import Buyer from './pages/Buyer'
 import Support from './pages/Support'
 import EmailVerification from './pages/EmailVerification'
 import AcceptInvite from './pages/AcceptInvite'
+import GoogleAdsAuthorize from './pages/GoogleAdsAuthorize'
 
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
@@ -70,6 +71,7 @@ function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/verify-email" element={<EmailVerification />} />
             <Route path="/accept-invite" element={<AcceptInvite />} />
+            <Route path="/google-ads/callback" element={<GoogleAdsAuthorize />} />
 
             <Route
               path="/*"

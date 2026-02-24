@@ -32,7 +32,7 @@ export const ForgotPassword = () => {
         variant="borderless"
       >
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <img src={logo} alt="Track Bridge" style={{ height: '64px', marginBottom: '24px', filter: 'drop-shadow(0px 0px 0px #084b8a) grayscale(100%) brightness(50%) sepia(100%) hue-rotate(175deg) saturate(300%)' }} />
+          <img src={logo} alt="Track2Gram" style={{ height: '64px', marginBottom: '24px', filter: 'drop-shadow(0px 0px 0px #084b8a) grayscale(100%) brightness(50%) sepia(100%) hue-rotate(175deg) saturate(300%)' }} />
           <Title level={2} style={{ margin: 0, fontWeight: 800, background: 'linear-gradient(45deg, #084b8a, #0a5a9e)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Forgot password?</Title>
           <Text style={{ display: 'block', marginTop: '12px', color: '#000000', opacity: 0.85, fontSize: '16px' }}>
             Enter the email associated with your account and we'll send you instructions to reset your password.
