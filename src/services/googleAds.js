@@ -102,10 +102,17 @@ export const googleAdsService = {
      * Get conversion actions for the connected account
      * @param {string} customerId 
      */
-    getConversionActions: (customerId) => {
-        return request(`/settings/conversion-actions?customerId=${customerId}`, {
+    getConversionActions: async (customerId) => {
+        const response = await request(`/settings/conversion-actions?customerId=${customerId}`, {
             method: 'GET',
         });
+
+        // Flatten the response if it matches the nested structure (conversion_action: { ... })
+        if (response.success && Array.isArray(response.data)) {
+            response.data = response.data.map(item => item.conversion_action || item);
+        }
+
+        return response;
     },
 };
 
