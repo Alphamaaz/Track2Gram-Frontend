@@ -73,7 +73,7 @@ const Sidebar = ({ onAddBlock }) => {
                 border: '1px solid #bae7ff'
             }}>
                 <Text type="secondary" style={{ fontSize: '12px' }}>
-                     Click a block on the canvas to edit it. Drag blocks to reorder them.
+                    Click a block on the canvas to edit it. Drag blocks to reorder them.
                 </Text>
             </div>
         </div>
