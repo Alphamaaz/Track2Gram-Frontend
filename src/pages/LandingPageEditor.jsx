@@ -363,8 +363,23 @@ const LandingPageEditor = () => {
                     if (block.content.src !== undefined) el.setAttribute('src', block.content.src);
                     if (block.content.alt !== undefined) el.setAttribute('alt', block.content.alt);
                 } else if (block.type === 'subscribe') {
-                    el.textContent = block.content.buttonText || '';
-                    if (el.tagName === 'A' && block.content.href) el.setAttribute('href', block.content.href);
+                    // Buttons and links
+                    if (el.tagName === 'A') {
+                        // Always update href when provided
+                        if (block.content.href !== undefined) {
+                            el.setAttribute('href', block.content.href || '#');
+                        }
+                        // If this anchor uses icon-only content (e.g. <i>), don't touch its inner HTML
+                        const hasIconChild = el.querySelector('i, svg');
+                        if (!hasIconChild && block.content.buttonText !== undefined) {
+                            el.textContent = block.content.buttonText || '';
+                        }
+                    } else {
+                        // Regular button element
+                        if (block.content.buttonText !== undefined) {
+                            el.textContent = block.content.buttonText || '';
+                        }
+                    }
                 } else if (block.type === 'text') {
                     const content = block.content.title !== undefined ? block.content.title :
                         (block.content.paragraph !== undefined ? block.content.paragraph :
@@ -405,7 +420,7 @@ const LandingPageEditor = () => {
             });
         });
 
-        // --- Text / Button elements ---
+        // --- Text / Button / Link elements ---
         // Broad selector to catch all meaningful leaf-level elements
         const TEXT_TAGS = 'h1,h2,h3,h4,h5,h6,p,a,button,span,div,li';
         const BLOCK_CHILD_TAGS = new Set(['DIV', 'P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'LI', 'TABLE', 'FORM', 'BLOCKQUOTE', 'SECTION', 'ARTICLE', 'HEADER', 'FOOTER', 'NAV']);
@@ -438,7 +453,10 @@ const LandingPageEditor = () => {
             if (!isKnownContentClass && el.querySelector('img, svg')) return;
 
             const text = el.textContent.trim();
-            if (!text) return;
+            const isAnchor = el.tagName === 'A';
+            // For normal text elements, require visible text.
+            // For anchors, allow even if there's no text (e.g. icon-only social links).
+            if (!text && !isAnchor) return;
 
             // Determine block type
             const isButton = el.tagName === 'A' || el.tagName === 'BUTTON' ||
@@ -454,7 +472,12 @@ const LandingPageEditor = () => {
             } else if (el.classList.contains('profile-description') || el.classList.contains('description') || el.classList.contains('desc')) {
                 displayTagName = 'DESCRIPTION';
             } else if (isButton) {
-                displayTagName = 'BUTTON';
+                // Distinguish icon-only links from regular buttons
+                if (el.tagName === 'A' && !text) {
+                    displayTagName = 'LINK';
+                } else {
+                    displayTagName = 'BUTTON';
+                }
             }
 
             const selector = stamp(el);

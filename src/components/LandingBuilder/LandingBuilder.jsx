@@ -165,21 +165,25 @@ const LandingBuilder = ({ onHtmlChange, initialBlocks = [] }) => {
                         )}
                         {block.type === 'subscribe' && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {block.tagName !== 'LINK' && (
+                                    <div>
+                                        <Text style={{ color: '#8c8c9e', fontSize: '11px', marginBottom: '4px', display: 'block' }}>BUTTON TEXT</Text>
+                                        <Input
+                                            value={block.content.buttonText || ''}
+                                            onChange={(e) => handleInputChange(block.id, 'buttonText', e.target.value)}
+                                            placeholder="Button Text"
+                                            style={{ background: '#161625', border: '1px solid #3d3d52', color: '#fff' }}
+                                        />
+                                    </div>
+                                )}
                                 <div>
-                                    <Text style={{ color: '#8c8c9e', fontSize: '11px', marginBottom: '4px', display: 'block' }}>BUTTON TEXT</Text>
-                                    <Input
-                                        value={block.content.buttonText || ''}
-                                        onChange={(e) => handleInputChange(block.id, 'buttonText', e.target.value)}
-                                        placeholder="Button Text"
-                                        style={{ background: '#161625', border: '1px solid #3d3d52', color: '#fff' }}
-                                    />
-                                </div>
-                                <div>
-                                    <Text style={{ color: '#8c8c9e', fontSize: '11px', marginBottom: '4px', display: 'block' }}>BUTTON LINK</Text>
+                                    <Text style={{ color: '#8c8c9e', fontSize: '11px', marginBottom: '4px', display: 'block' }}>
+                                        {block.tagName === 'LINK' ? 'LINK URL' : 'BUTTON LINK'}
+                                    </Text>
                                     <Input
                                         value={block.content.href || ''}
                                         onChange={(e) => handleInputChange(block.id, 'href', e.target.value)}
-                                        placeholder="Button Link (URL)"
+                                        placeholder={block.tagName === 'LINK' ? 'Link URL' : 'Button Link (URL)'}
                                         prefix={<LinkOutlined style={{ color: '#6a6a85' }} />}
                                         style={{ background: '#161625', border: '1px solid #3d3d52', color: '#fff' }}
                                     />

@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Button, Upload, message as antMessage, Space, Modal } from 'antd';
-import { EditOutlined, PictureOutlined } from '@ant-design/icons';
+import { Button, Upload, message as antMessage, Space, Modal, Input } from 'antd';
+import { EditOutlined, PictureOutlined, LinkOutlined } from '@ant-design/icons';
 
 const VisualHTMLEditor = ({ html, onHtmlChange }) => {
     const iframeRef = useRef(null);
     const [editMode, setEditMode] = useState(false);
     const [selectedElement, setSelectedElement] = useState(null);
+    const [links, setLinks] = useState([]); // { element, id, label, href }
     const [showImageUpload, setShowImageUpload] = useState(false);
 
     const updateHTML = useCallback(() => {
@@ -16,6 +17,29 @@ const VisualHTMLEditor = ({ html, onHtmlChange }) => {
             onHtmlChange(updatedHTML);
         }
     }, [onHtmlChange]);
+
+    const scanLinks = useCallback((doc) => {
+        if (!doc) {
+            setLinks([]);
+            return;
+        }
+        const anchors = Array.from(doc.querySelectorAll('a'));
+        if (!anchors.length) {
+            setLinks([]);
+            return;
+        }
+        setLinks(
+            anchors.map((anchor, index) => ({
+                element: anchor,
+                id:
+                    anchor.getAttribute('id') ||
+                    anchor.getAttribute('data-veid') ||
+                    `link-${index + 1}`,
+                label: (anchor.textContent || '').trim() || `Link ${index + 1}`,
+                href: anchor.getAttribute('href') || ''
+            }))
+        );
+    }, []);
 
     const makeTextEditable = useCallback((element) => {
         element.setAttribute('contenteditable', 'true');
@@ -92,7 +116,10 @@ const VisualHTMLEditor = ({ html, onHtmlChange }) => {
                 handleImageClick(img);
             });
         });
-    }, [makeTextEditable, handleImageClick]);
+
+        // Detect all anchor tags and prepare link fields
+        scanLinks(doc);
+    }, [makeTextEditable, handleImageClick, scanLinks]);
 
     const disableEditing = useCallback((doc) => {
         // Remove editing styles
@@ -107,6 +134,8 @@ const VisualHTMLEditor = ({ html, onHtmlChange }) => {
             el.removeAttribute('data-editable');
             el.style.cursor = '';
         });
+        // Clear links when disabling
+        setLinks([]);
     }, []);
 
     useEffect(() => {
@@ -147,6 +176,7 @@ const VisualHTMLEditor = ({ html, onHtmlChange }) => {
         if (!newEditMode) {
             // Exiting edit mode - save and clean up
             updateHTML();
+            setLinks([]);
             if (iframeRef.current) {
                 const iframe = iframeRef.current;
                 const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
@@ -163,26 +193,70 @@ const VisualHTMLEditor = ({ html, onHtmlChange }) => {
                 borderBottom: '1px solid #084b8a33',
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'center'
+                alignItems: 'center',
+                gap: 16
             }}>
-                <Space>
-                    <Button
-                        type={editMode ? 'primary' : 'default'}
-                        icon={<EditOutlined />}
-                        onClick={toggleEditMode}
-                    >
-                        {editMode ? 'Exit Edit Mode' : 'Enable Editing'}
-                    </Button>
-                    {editMode && (
-                        <div style={{
-                            padding: '4px 12px',
-                            background: 'rgba(8, 75, 138, 0.05)',
-                            borderRadius: '4px',
-                            fontSize: '13px',
-                            color: '#084b8a',
-                            border: '1px solid rgba(8, 75, 138, 0.1)'
-                        }}>
-                            💡 Click text to edit, click images to replace
+                <Space direction="vertical" style={{ width: '100%' }}>
+                    <Space>
+                        <Button
+                            type={editMode ? 'primary' : 'default'}
+                            icon={<EditOutlined />}
+                            onClick={toggleEditMode}
+                        >
+                            {editMode ? 'Exit Edit Mode' : 'Enable Editing'}
+                        </Button>
+                        {editMode && (
+                            <Space size="middle">
+                                <div style={{
+                                    padding: '4px 12px',
+                                    background: 'rgba(8, 75, 138, 0.05)',
+                                    borderRadius: '4px',
+                                    fontSize: '13px',
+                                    color: '#084b8a',
+                                    border: '1px solid rgba(8, 75, 138, 0.1)'
+                                }}>
+                                    💡 Click text to edit, click images to replace
+                                </div>
+                            </Space>
+                        )}
+                    </Space>
+                    {editMode && links.length > 0 && (
+                        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {links.map((link, index) => (
+                                <div
+                                    key={link.id || `link-${index}`}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 8
+                                    }}
+                                >
+                                    <LinkOutlined style={{ color: '#084b8a' }} />
+                                    <span style={{ minWidth: 80, fontSize: 12, color: '#555' }}>
+                                        {link.label || `Link ${index + 1}`}
+                                    </span>
+                                    <Input
+                                        size="small"
+                                        placeholder="Paste URL"
+                                        value={link.href}
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+                                            setLinks(prev =>
+                                                prev.map((item, i) => {
+                                                    if (i === index) {
+                                                        if (item.element) {
+                                                            item.element.setAttribute('href', value || '');
+                                                        }
+                                                        return { ...item, href: value };
+                                                    }
+                                                    return item;
+                                                })
+                                            );
+                                            updateHTML();
+                                        }}
+                                    />
+                                </div>
+                            ))}
                         </div>
                     )}
                 </Space>
