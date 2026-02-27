@@ -5,8 +5,10 @@ import {
     PhoneOutlined,
     MessageOutlined,
     SendOutlined,
-    UploadOutlined
+    UploadOutlined,
+    QuestionCircleOutlined
 } from '@ant-design/icons';
+import { supportService } from '../services/support';
 
 const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;
@@ -14,26 +16,54 @@ const { Option } = Select;
 
 const Support = () => {
     const [form] = Form.useForm();
+    const [loading, setLoading] = React.useState(false);
+    const [fileList, setFileList] = React.useState([]);
 
-    const onFinish = (values) => {
-        console.log('Support request:', values);
-        message.success('Your message has been sent. We will get back to you soon!');
-        form.resetFields();
+    const onFinish = async (values) => {
+        setLoading(true);
+        try {
+            const formData = new FormData();
+            formData.append('name', values.name);
+            formData.append('email', values.email);
+            formData.append('category', values.category.toLowerCase());
+            formData.append('message', values.message);
+
+            if (fileList.length > 0) {
+                formData.append('image', fileList[0].originFileObj);
+            }
+
+            const response = await supportService.submitTicket(formData);
+
+            if (response.success) {
+                message.success('Support request submitted successfully');
+                form.resetFields();
+                setFileList([]);
+            }
+        } catch (error) {
+            console.error('Support submission error:', error);
+            message.error(error?.message || 'Failed to send support request');
+        } finally {
+            setLoading(false);
+        }
     };
+
+    const handleUploadChange = ({ fileList: newFileList }) => setFileList(newFileList);
 
 
     return (
-        <div style={{ padding: '0px' }}>
-            <div style={{ marginBottom: '32px' }}>
-                <Title level={2} style={{ margin: 0, color: '#1e293b' }}>Help & Support</Title>
-                <Paragraph type="secondary">We're here to help you get the most out of Track2Gram.</Paragraph>
+        <div style={{ padding: '0 clamp(12px, 3vw, 24px)', paddingBottom: '40px', maxWidth: '1600px', margin: '0 auto', background: '#F8FAFC' }}>
+            <div style={{ marginBottom: '32px', paddingTop: '24px' }}>
+                <Title level={2} style={{ margin: 0, fontWeight: 800, letterSpacing: '-0.02em', color: '#084b8a' }}>Help & Support</Title>
+                <Paragraph style={{ color: '#64748b', fontWeight: 500 }}>We're here to help you get the most out of Track-Bridge.</Paragraph>
             </div>
 
             <Row gutter={[24, 24]}>
                 <Col xs={24} lg={16}>
                     <Card
-                        title={<Space><MessageOutlined /> Contact Support</Space>}
-                        style={{ borderRadius: '12px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)' }}
+                        title={<Space style={{ color: '#084b8a', fontWeight: 700 }}><MessageOutlined /> Contact Support</Space>}
+                        variant="borderless"
+                        style={{ borderRadius: '20px', boxShadow: '0 4px 20px -5px rgba(0, 0, 0, 0.05)', background: '#fff' }}
+                        styles={{ body: { padding: 'clamp(16px, 3vw, 32px)' } }}
                     >
                         <Form
                             form={form}
@@ -86,8 +116,14 @@ const Support = () => {
                                 name="image"
                                 label="Upload Image"
                             >
-                                <Upload maxCount={1} listType="picture">
-                                    <Button icon={<UploadOutlined />}>Click to upload</Button>
+                                <Upload
+                                    maxCount={1}
+                                    listType="picture"
+                                    fileList={fileList}
+                                    onChange={handleUploadChange}
+                                    beforeUpload={() => false}
+                                >
+                                    <Button icon={<UploadOutlined />} style={{ borderRadius: '8px' }}>Click to upload screenshot</Button>
                                 </Upload>
                             </Form.Item>
                             <Form.Item>
@@ -95,7 +131,16 @@ const Support = () => {
                                     type="primary"
                                     htmlType="submit"
                                     icon={<SendOutlined />}
-                                    style={{ background: '#084b8a', borderColor: '#084b8a', height: '40px' }}
+                                    loading={loading}
+                                    style={{
+                                        background: '#084b8a',
+                                        borderColor: '#084b8a',
+                                        height: '48px',
+                                        borderRadius: '12px',
+                                        padding: '0 32px',
+                                        fontWeight: 600,
+                                        boxShadow: '0 4px 6px -1px rgba(8, 75, 138, 0.2)'
+                                    }}
                                 >
                                     Send Message
                                 </Button>
@@ -108,20 +153,25 @@ const Support = () => {
                 <Col xs={24} lg={8}>
                     <Space direction="vertical" size="large" style={{ width: '100%' }}>
 
-                        <Card title="Direct Contact" style={{ borderRadius: '12px' }}>
-                            <Space direction="vertical" size="middle">
-                                <div>
-                                    <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>EMAIL US</Text>
+                        <Card
+                            title={<Space style={{ color: '#084b8a', fontWeight: 700 }}><QuestionCircleOutlined /> Direct Contact</Space>}
+                            variant="borderless"
+                            style={{ borderRadius: '20px', boxShadow: '0 4px 20px -5px rgba(0, 0, 0, 0.05)', background: '#fff' }}
+                            styles={{ body: { padding: '24px' } }}
+                        >
+                            <Space direction="vertical" size="xlarge" style={{ width: '100%' }}>
+                                <div style={{ padding: '16px', borderRadius: '12px' }}>
+                                    <Text style={{ fontSize: '11px', fontWeight: 800, color: '#084b8a', display: 'block', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>EMAIL US</Text>
                                     <Space>
                                         <MailOutlined style={{ color: '#084b8a' }} />
-                                        <Text strong>support@track2gram.com</Text>
+                                        <Text strong style={{ color: '#1e293b' }}>support@track-bridge.com</Text>
                                     </Space>
                                 </div>
-                                <div>
-                                    <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>CALL US</Text>
+                                <div style={{  padding: '16px', borderRadius: '12px',  }}>
+                                    <Text style={{ fontSize: '11px', fontWeight: 800, color: '#084b8a', display: 'block', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>CALL US</Text>
                                     <Space>
                                         <PhoneOutlined style={{ color: '#084b8a' }} />
-                                        <Text strong>+971 4 123 4567</Text>
+                                        <Text strong style={{ color: '#1e293b' }}>+971 4 123 4567</Text>
                                     </Space>
                                 </div>
                             </Space>

@@ -4,6 +4,7 @@ import { Signup } from './pages/Signup'
 import { Login } from './pages/Login'
 import { ForgotPassword } from './pages/ForgotPassword'
 import { ResetPassword } from './pages/ResetPassword'
+import Home from './pages/Home'
 import Dashboard from './pages/Dashboard'
 import Projects from './pages/Projects'
 import ProjectConfiguration from './pages/ProjectConfiguration'
@@ -13,14 +14,18 @@ import GoogleAdsIntegration from './pages/GoogleAdsIntegration'
 import TelegramIntegration from './pages/TelegramIntegration'
 import LeadManagement from './pages/LeadManagement'
 import Analytics from './pages/Analytics'
-import Settings from './pages/Settings'
 import RoleManagement from './pages/RoleManagement'
 import Buyer from './pages/Buyer'
 import Support from './pages/Support'
 import EmailVerification from './pages/EmailVerification'
 import AcceptInvite from './pages/AcceptInvite'
 import GoogleAdsAuthorize from './pages/GoogleAdsAuthorize'
-
+import PrivacyPolicy from './pages/PrivacyPolicy'
+import TermsOfService from './pages/TermsOfService'
+import Features from './pages/LandingPages/Features'
+import Pricing from './pages/LandingPages/Pricing'
+import About from './pages/LandingPages/About'
+import Contact from './pages/LandingPages/Contact'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import { useState } from 'react'
@@ -64,14 +69,20 @@ function App() {
       <AntApp>
         <Router>
           <Routes>
-            <Route path="/" element={<Navigate to="/signup" replace />} />
+            <Route path="/" element={<Home />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/google-ads/callback" element={<GoogleAdsAuthorize />} />
             <Route path="/verify-email" element={<EmailVerification />} />
             <Route path="/accept-invite" element={<AcceptInvite />} />
-            <Route path="/google-ads/callback" element={<GoogleAdsAuthorize />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/terms-of-service" element={<TermsOfService />} />
+            <Route path="/features" element={<Features />} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
 
             <Route
               path="/*"
@@ -111,7 +122,6 @@ function App() {
                           <Route path="lead-management" element={<LeadManagement />} />
                           <Route path="analytics" element={<Analytics />} />
 
-                          <Route path="settings" element={<Settings />} />
                           <Route path="role-management" element={<RoleManagement />} />
                           <Route path="buyers" element={<Buyer />} />
                           <Route path="support" element={<Support />} />

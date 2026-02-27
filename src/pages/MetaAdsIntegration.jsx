@@ -248,6 +248,20 @@ const MetaAdsIntegration = () => {
                             </Col>
                             <Col xs={24}>
                                 <Form.Item
+                                    label={<Text strong style={{ color: '#334155', fontSize: '14px' }}>Meta Ad Account ID</Text>}
+                                    name="META_AD_ACCOUNT_ID"
+                                    tooltip="Enter your Meta Ad Account ID (e.g., act_123456789)"
+                                >
+                                    <Input
+                                        placeholder="Enter Ad Account ID"
+                                        size="large"
+                                        className="premium-input-field"
+                                        style={{ height: '50px' }}
+                                    />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24}>
+                                <Form.Item
                                     label={<Text strong style={{ color: '#334155', fontSize: '14px' }}>Conversion API Access Token</Text>}
                                     name="META_ACCESS_TOKEN"
                                     rules={[{ required: true, message: 'Please enter your Access Token' }]}

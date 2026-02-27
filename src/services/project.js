@@ -140,6 +140,29 @@ export const projectService = {
         if (startDate) query.append('startDate', startDate);
         if (endDate) query.append('endDate', endDate);
         return request(`/projects/dashboard/chart?${query.toString()}`);
+    },
+
+    /**
+     * Get leads for management
+     */
+    getLeads: (params = {}) => {
+        const query = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined && value !== null && value !== '') {
+                query.append(key, value);
+            }
+        });
+        return request(`/projects/leads?${query.toString()}`);
+    },
+
+    /**
+     * Get overall platform analytics for dashboard
+     */
+    getPlatformAnalytics: (startDate, endDate) => {
+        const query = new URLSearchParams();
+        if (startDate) query.append('startDate', startDate);
+        if (endDate) query.append('endDate', endDate);
+        return request(`/projects/dashboard/platform-analytics?${query.toString()}`);
     }
 };
 

@@ -16,14 +16,18 @@ const Dashboard = () => {
   const [stats, setStats] = useState(null)
   const [chartData, setChartData] = useState([])
   const [projects, setProjects] = useState([])
-  const [platformFilter, setPlatformFilter] = useState('all')
-  const [dateRange, setDateRange] = useState([dayjs().subtract(30, 'days'), dayjs()])
+  const [platformFilter, setPlatformFilter] = useState('meta,google')
+  const [dateRange, setDateRange] = useState([dayjs().subtract(19, 'days'), dayjs()])
+  const [selectedMetric, setSelectedMetric] = useState('clicks')
+  const [availableMetrics, setAvailableMetrics] = useState(['clicks', 'subscribers', 'conversionRate'])
 
   const fetchDashboardData = useCallback(async () => {
     setLoading(true)
     const startDate = dateRange[0]?.format('YYYY-MM-DD')
     const endDate = dateRange[1]?.format('YYYY-MM-DD')
-    const platform = platformFilter === 'All' ? 'all' : platformFilter.toLowerCase()
+
+    // Use the exact filter or the default "meta,google"
+    const platform = platformFilter
 
     try {
       const [statsRes, chartRes, projectsRes] = await Promise.all([
@@ -32,38 +36,51 @@ const Dashboard = () => {
         projectService.getProjects()
       ])
 
-      if (statsRes.success) setStats(statsRes.data)
+      if (statsRes?.success) setStats(statsRes.data)
 
-      if (chartRes.success && chartRes.data.chart) {
-        const { xAxis, series } = chartRes.data.chart
-        const formattedData = xAxis.values.map((val, idx) => {
-          const entry = { name: val }
-          series.forEach(s => {
-            entry[s.key] = s.values[idx] || 0
+      if (chartRes?.success && chartRes.data?.chart) {
+        const { xAxis, seriesByMetric } = chartRes.data.chart
+
+        if (chartRes.data.availableMetrics) {
+          setAvailableMetrics(chartRes.data.availableMetrics)
+        }
+
+        const currentSeries = seriesByMetric?.[selectedMetric] || []
+
+        const formattedData = (xAxis?.values || []).map((val, idx) => {
+          // Professionally format the X-axis value (day number to date)
+          let label = val;
+          if (typeof val === 'number' && dateRange[0]) {
+            label = dateRange[0].add(val - 1, 'day').format('MMM DD')
+          }
+
+          const entry = { name: label }
+          currentSeries.forEach(s => {
+            entry[s.key] = s.values?.[idx] || 0
           })
           return entry
         })
         setChartData(formattedData)
       }
 
-      if (projectsRes.success) setProjects(projectsRes.data)
+      if (projectsRes?.success) setProjects(projectsRes.data || [])
     } catch (error) {
       console.error('Dashboard fetch error:', error)
       message.error(error?.message || 'Failed to load dashboard data')
     } finally {
       setLoading(false)
     }
-  }, [dateRange, platformFilter, message])
+  }, [dateRange, platformFilter, message, selectedMetric])
 
   useEffect(() => {
     fetchDashboardData()
   }, [fetchDashboardData])
 
   const statCards = [
-    { title: 'Total Visits', value: stats?.visitors || 0, color: 'rgba(8, 75, 138, 0.08)', icon: <SearchOutlined /> },
-    { title: 'Total Clicks', value: stats?.clicks || 0, color: 'rgba(8, 75, 138, 0.08)', icon: <ArrowUpOutlined /> },
-    { title: 'Subscriptions', value: stats?.subscribers || 0, color: 'rgba(8, 75, 138, 0.08)', icon: <ProjectOutlined /> },
-    { title: 'Unsubscriptions', value: stats?.unsubscribers || 0, color: 'rgba(8, 75, 138, 0.08)', icon: <ArrowDownOutlined /> },
+    { title: 'Total Visits', value: stats?.visitors || 0, icon: <SearchOutlined /> },
+    { title: 'Total Clicks', value: stats?.clicks || 0, icon: <ArrowUpOutlined /> },
+    { title: 'Subscriptions', value: stats?.subscribers || 0, icon: <ProjectOutlined /> },
+    { title: 'Unsubscriptions', value: stats?.unsubscribers || 0, icon: <ArrowDownOutlined /> },
   ]
 
   const columns = [
@@ -104,10 +121,9 @@ const Dashboard = () => {
       title: 'STATUS',
       dataIndex: 'status',
       key: 'status',
-      align: 'right',
-      render: () => (
-        <Tag color="success" style={{ borderRadius: '12px', padding: '0 12px', fontWeight: 'bold', border: 'none' }}>
-          ACTIVE
+      render: (status) => (
+        <Tag color={status === 'inactive' ? 'error' : 'success'} style={{ borderRadius: '12px', padding: '0 12px', fontWeight: 'bold', border: 'none', textTransform: 'uppercase' }}>
+          {status || 'ACTIVE'}
         </Tag>
       ),
     },
@@ -116,19 +132,19 @@ const Dashboard = () => {
   const filteredProjects = projects;
 
   return (
-    <div style={{ padding: '0 clamp(12px, 3vw, 24px)', paddingBottom: '40px', maxWidth: '1600px', margin: '0 auto' }}>
-      <div className="dashboard-header" style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
+    <div style={{ padding: '0 clamp(12px, 3vw, 24px)', paddingBottom: '40px', maxWidth: '1600px', margin: '0 auto', background: '#F8FAFC' }}>
+      <div className="dashboard-header" style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px', paddingTop: '24px' }}>
         <div>
-          <Title level={2} style={{ margin: 0, fontWeight: 800, letterSpacing: '-0.02em', color: '#0f172a' }}>Global Dashboard</Title>
-          <Text style={{ color: '#64748b' }}>Real-time overview of all your tracking campaigns.</Text>
+          <Title level={2} style={{ margin: 0, fontWeight: 800, letterSpacing: '-0.02em', color: '#084b8a' }}>Global Dashboard</Title>
+          <Text style={{ color: '#64748b', fontWeight: 500 }}>Real-time overview of all your tracking campaigns.</Text>
         </div>
         <Space size="middle" wrap>
           <Select
-            defaultValue="All"
+            value={platformFilter}
             style={{ width: 160 }}
             onChange={setPlatformFilter}
             options={[
-              { value: 'All', label: 'All Platforms' },
+              { value: 'meta,google', label: 'All Platforms' },
               { value: 'google', label: 'Google Ads' },
               { value: 'meta', label: 'Meta Ads' },
             ]}
@@ -152,10 +168,11 @@ const Dashboard = () => {
                 <Card
                   variant="borderless"
                   style={{
-                    background: 'rgba(8, 75, 138, 0.04)',
+                    background: '#E6ECF2',
                     borderRadius: '20px',
                     height: '100%',
-                    border: '1px solid rgba(8, 75, 138, 0.08)'
+                    border: '1px solid rgba(8, 75, 138, 0.1)',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)'
                   }}
                   styles={{ body: { padding: '24px' } }}
                 >
@@ -164,11 +181,11 @@ const Dashboard = () => {
                       <Text style={{ fontSize: '13px', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: '8px' }}>
                         {stat.title}
                       </Text>
-                      <Title level={2} style={{ margin: 0, fontWeight: 800, color: '#0f172a' }}>
+                      <Title level={2} style={{ margin: 0, fontWeight: 800, color: '#084b8a' }}>
                         {stat.value}
                       </Title>
                     </div>
-                    <div style={{ width: '40px', height: '40px', background: stat.color, borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ width: '40px', height: '40px', background: '#fff', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                       {React.cloneElement(stat.icon, { style: { color: '#084b8a', fontSize: '18px' } })}
                     </div>
                   </div>
@@ -183,9 +200,18 @@ const Dashboard = () => {
             style={{ borderRadius: '24px', marginBottom: '32px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.03)', background: '#fff' }}
             styles={{ body: { padding: 'clamp(16px, 3vw, 32px)' } }}
             title={
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                 <Text strong style={{ color: '#1e293b', fontSize: '16px' }}>Performance Overview</Text>
                 <Space>
+                  <Select
+                    value={selectedMetric}
+                    onChange={setSelectedMetric}
+                    style={{ width: 150 }}
+                    options={availableMetrics.map(m => ({
+                      value: m,
+                      label: m.charAt(0).toUpperCase() + m.slice(1).replace(/([A-Z])/g, ' $1')
+                    }))}
+                  />
                   <Tag color="processing" style={{ borderRadius: '6px' }}>Live Data</Tag>
                 </Space>
               </div>
@@ -195,22 +221,40 @@ const Dashboard = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="colorGoogle" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#084b8a" stopOpacity={0.15} />
-                      <stop offset="95%" stopColor="#084b8a" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorMeta" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.15} />
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                    </linearGradient>
+                    {Object.entries({ google: '#084b8a', meta: '#6366f1', other: '#94a3b8' }).map(([key, color]) => (
+                      <linearGradient key={`color${key}`} id={`color${key}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={color} stopOpacity={0.15} />
+                        <stop offset="95%" stopColor={color} stopOpacity={0} />
+                      </linearGradient>
+                    ))}
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }} />
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#94a3b8', fontSize: 11 }}
+                    dy={10}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                  <Tooltip
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
+                    labelStyle={{ fontWeight: 'bold', marginBottom: '4px' }}
+                  />
                   <Legend verticalAlign="top" height={36} iconType="circle" />
-                  <Area name="Google Ads" type="monotone" dataKey="google" stroke="#084b8a" strokeWidth={3} fillOpacity={1} fill="url(#colorGoogle)" />
-                  <Area name="Meta Ads" type="monotone" dataKey="meta" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorMeta)" />
+                  {chartData.length > 0 && Object.keys(chartData[0]).filter(key => key !== 'name').map(key => (
+                    <Area
+                      key={key}
+                      name={key.charAt(0).toUpperCase() + key.slice(1) + " Ads"}
+                      type="monotone"
+                      dataKey={key}
+                      stroke={key === 'google' ? '#084b8a' : key === 'meta' ? '#6366f1' : '#94a3b8'}
+                      strokeWidth={3}
+                      fillOpacity={1}
+                      fill={`url(#color${['google', 'meta'].includes(key) ? key : 'other'})`}
+                    />
+                  ))}
                 </AreaChart>
               </ResponsiveContainer>
             </div>

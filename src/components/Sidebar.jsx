@@ -84,11 +84,6 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
       icon: <CustomerServiceOutlined />,
       label: <Link to="/support">Support</Link>,
     },
-    {
-      key: '/settings',
-      icon: <SettingOutlined />,
-      label: <Link to="/settings">Settings</Link>,
-    },
   ].filter(Boolean);
 
   return (
