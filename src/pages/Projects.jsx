@@ -169,7 +169,7 @@ const Projects = () => {
           onClick={() => navigate('/analytics', { state: { project: record } })}
           style={{ padding: 0, fontSize: '13px', color: '#084b8a' }}
         >
-          IP/User Agent
+          View Analytics
         </Button>
       ),
     },

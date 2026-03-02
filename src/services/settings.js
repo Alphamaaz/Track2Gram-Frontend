@@ -14,7 +14,7 @@ const request = async (endpoint, options = {}) => {
     };
 
     try {
-        const response = await fetch(url, { ...options, headers });
+        const response = await fetch(url, { cache: 'no-store', ...options, headers });
         const data = await response.json();
 
         if (!response.ok) {
@@ -35,7 +35,8 @@ export const settingsService = {
      * Get all app settings
      */
     getSettings: () => {
-        return request('/settings', {
+        const query = new URLSearchParams({ _t: Date.now().toString() });
+        return request(`/settings?${query.toString()}`, {
             method: 'GET',
         });
     },

@@ -250,6 +250,7 @@ const MetaAdsIntegration = () => {
                                 <Form.Item
                                     label={<Text strong style={{ color: '#334155', fontSize: '14px' }}>Meta Ad Account ID</Text>}
                                     name="META_AD_ACCOUNT_ID"
+                                    rules={[{ required: true, message: 'Please enter your Ad Account ID' }]}
                                     tooltip="Enter your Meta Ad Account ID (e.g., act_123456789)"
                                 >
                                     <Input
@@ -275,20 +276,7 @@ const MetaAdsIntegration = () => {
                                     />
                                 </Form.Item>
                             </Col>
-                            <Col xs={24}>
-                                <Form.Item
-                                    label={<Text strong style={{ color: '#334155', fontSize: '14px' }}>Test Event Code (Optional)</Text>}
-                                    name="META_TEST_EVENT_CODE"
-                                    tooltip="Use this code from the 'Test Events' tab in Meta Events Manager to verify server-side events"
-                                >
-                                    <Input
-                                        placeholder="Enter test code"
-                                        size="large"
-                                        className="premium-input-field"
-                                        style={{ height: '50px' }}
-                                    />
-                                </Form.Item>
-                            </Col>
+                           
                         </Row>
 
                         <div style={{ marginTop: '40px', paddingTop: '32px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>

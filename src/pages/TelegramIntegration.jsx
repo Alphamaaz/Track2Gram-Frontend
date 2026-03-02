@@ -10,11 +10,15 @@ const TelegramIntegration = () => {
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [tokenVisible, setTokenVisible] = useState(false);
 
     const fetchSettings = useCallback(async () => {
         try {
             setLoading(true);
             const data = await settingsService.getSettings();
+            console.log('settings response (TelegramIntegration)', data); // debug token issue
+            console.log('TELEGRAM_BOT_TOKEN present?', 'TELEGRAM_BOT_TOKEN' in data, 'value:', data?.TELEGRAM_BOT_TOKEN);
+            console.log('Response keys:', Object.keys(data));
             form.setFieldsValue(data);
         } catch (error) {
             console.error('Failed to fetch settings:', error);
@@ -131,8 +135,24 @@ const TelegramIntegration = () => {
                             extra={<Text type="secondary" style={{ fontSize: '12px', marginTop: '4px', display: 'block' }}>Obtain this from @BotFather on Telegram</Text>}
                             style={{ marginBottom: '28px' }}
                         >
-                            <Input.Password size="large" className="premium-input" placeholder="e.g. 123456789:ABCDefgh..." />
+                            <Input.Password 
+                                size="large" 
+                                className="premium-input" 
+                                placeholder="e.g. 123456789:ABCDefgh..." 
+                                visibilityToggle={{
+                                    visible: tokenVisible,
+                                    onVisibleChange: setTokenVisible,
+                                }}
+                            />
                         </Form.Item>
+                        {form.getFieldValue('TELEGRAM_BOT_TOKEN') && (
+                            <div style={{ marginBottom: '28px' }}>
+                                <Text type="secondary" style={{ fontSize: '12px' }}>
+                                    Current token (copyable):{' '}
+                                    <Text copyable>{form.getFieldValue('TELEGRAM_BOT_TOKEN')}</Text>
+                                </Text>
+                            </div>
+                        )}
 
                         <Row gutter={24}>
                             <Col xs={24} md={12}>
@@ -156,7 +176,7 @@ const TelegramIntegration = () => {
                         </Row>
 
                         <Form.Item
-                            label={<Text strong style={{ color: '#334155', fontSize: '14px' }}>External Redirect Link</Text>}
+                            label={<Text strong style={{ color: '#334155', fontSize: '14px' }}>Telegram Channel Link</Text>}
                             name="TELEGRAM_REDIRECT_URL"
                             style={{ marginBottom: 0 }}
                         >

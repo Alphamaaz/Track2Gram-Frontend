@@ -14,7 +14,7 @@ const request = async (endpoint, options = {}) => {
     };
 
     try {
-        const response = await fetch(url, { ...options, headers });
+        const response = await fetch(url, { cache: 'no-store', ...options, headers });
         const data = await response.json();
 
         if (!response.ok) {
@@ -162,6 +162,7 @@ export const projectService = {
         const query = new URLSearchParams();
         if (startDate) query.append('startDate', startDate);
         if (endDate) query.append('endDate', endDate);
+        query.append('_t', Date.now().toString());
         return request(`/projects/dashboard/platform-analytics?${query.toString()}`);
     }
 };

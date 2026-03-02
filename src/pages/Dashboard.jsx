@@ -9,6 +9,15 @@ import { useNavigate } from 'react-router-dom'
 const { Title, Text } = Typography
 const { RangePicker } = DatePicker
 
+const METRIC_ALIAS = {
+  visits: 'visitors',
+  visitor: 'visitors',
+  visitors: 'visitors',
+  clicks: 'clicks',
+  subscribers: 'subscribers',
+  conversionRate: 'conversionRate',
+}
+
 const Dashboard = () => {
   const navigate = useNavigate()
   const { message } = App.useApp()
@@ -16,7 +25,7 @@ const Dashboard = () => {
   const [stats, setStats] = useState(null)
   const [chartData, setChartData] = useState([])
   const [projects, setProjects] = useState([])
-  const [platformFilter, setPlatformFilter] = useState('meta,google')
+  const [platformFilter, setPlatformFilter] = useState('all')
   const [dateRange, setDateRange] = useState([dayjs().subtract(19, 'days'), dayjs()])
   const [selectedMetric, setSelectedMetric] = useState('clicks')
   const [availableMetrics, setAvailableMetrics] = useState(['clicks', 'subscribers', 'conversionRate'])
@@ -35,17 +44,25 @@ const Dashboard = () => {
         projectService.getDashboardChart(platform, startDate, endDate),
         projectService.getProjects()
       ])
+      console.log('Dashboard Stats:', statsRes)
+      console.log('Dashboard Chart:', chartRes)
+      console.log('Projects:', projectsRes)
 
       if (statsRes?.success) setStats(statsRes.data)
 
       if (chartRes?.success && chartRes.data?.chart) {
         const { xAxis, seriesByMetric } = chartRes.data.chart
 
-        if (chartRes.data.availableMetrics) {
-          setAvailableMetrics(chartRes.data.availableMetrics)
-        }
+        const apiMetrics = chartRes.data.availableMetrics || Object.keys(seriesByMetric || {})
+        if (apiMetrics.length) setAvailableMetrics(apiMetrics)
 
-        const currentSeries = seriesByMetric?.[selectedMetric] || []
+        const normalizedMetric = METRIC_ALIAS[selectedMetric] || selectedMetric
+        const resolvedMetric = (seriesByMetric?.[normalizedMetric]
+          ? normalizedMetric
+          : (apiMetrics[0] || 'clicks'))
+        if (resolvedMetric !== selectedMetric) setSelectedMetric(resolvedMetric)
+
+        const currentSeries = seriesByMetric?.[resolvedMetric] || []
 
         const formattedData = (xAxis?.values || []).map((val, idx) => {
           // Professionally format the X-axis value (day number to date)
@@ -144,7 +161,7 @@ const Dashboard = () => {
             style={{ width: 160 }}
             onChange={setPlatformFilter}
             options={[
-              { value: 'meta,google', label: 'All Platforms' },
+              { value: 'all', label: 'All Platforms' },
               { value: 'google', label: 'Google Ads' },
               { value: 'meta', label: 'Meta Ads' },
             ]}
