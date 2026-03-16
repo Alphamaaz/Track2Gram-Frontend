@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '../config';
+import { handleAuthExpiry } from './session';
 
 /**
  * Common request handler to handle fetch responses and errors
@@ -18,6 +19,7 @@ const request = async (endpoint, options = {}) => {
         const data = await response.json();
 
         if (!response.ok) {
+            handleAuthExpiry(response, data, Boolean(token));
             throw data;
         }
 

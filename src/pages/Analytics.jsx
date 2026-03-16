@@ -19,6 +19,16 @@ const METRIC_KEY_MAP = {
     totalSpend: 'totalSpend',
 };
 
+const PROJECT_BACKEND_METRIC_MAP = {
+    visits: 'visitors',
+    visitors: 'visitors',
+    clicks: 'clicks',
+    subscribers: 'subscribers',
+    unsubscribers: 'unsubscribers',
+    conversionRate: 'conversionRate',
+    totalSpend: 'totalSpend',
+};
+
 const CHART_METRICS = [
     { value: 'visits', label: 'Visits' },
     { value: 'clicks', label: 'Clicks' },
@@ -33,6 +43,18 @@ const PLATFORM_FILTERS = [
     { value: 'google', label: 'Google Ads' },
     { value: 'meta', label: 'Meta Ads' },
 ];
+
+const getMetricLabel = (metric) => {
+    const normalized = METRIC_KEY_MAP[metric] || metric;
+    return CHART_METRICS.find((item) => item.value === normalized || item.value === metric)?.label || 'Value';
+};
+
+const formatMetricValue = (metric, value) => {
+    const num = Number(value || 0);
+    if ((METRIC_KEY_MAP[metric] || metric) === 'totalSpend') return `PKR ${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if ((METRIC_KEY_MAP[metric] || metric) === 'conversionRate') return `${num.toFixed(2)}%`;
+    return num.toLocaleString();
+};
 
 const PLATFORM_COLORS = {
     google: '#084b8a',
@@ -86,7 +108,7 @@ const Analytics = () => {
     const [projectChartSeries, setProjectChartSeries] = useState(null);
     const [spendSeriesByPlatform, setSpendSeriesByPlatform] = useState(null);
     const [xAxisDates, setXAxisDates] = useState([]);
-    const [selectedChartMetric, setSelectedChartMetric] = useState('visits');
+    const [selectedChartMetric, setSelectedChartMetric] = useState('clicks');
     const [selectedChartPlatform, setSelectedChartPlatform] = useState('all');
 
     const resolveMetricSeries = useCallback((platformData, metric) => {
@@ -243,22 +265,77 @@ const Analytics = () => {
 
         try {
             if (project?._id) {
+                const selectedBackendMetric = PROJECT_BACKEND_METRIC_MAP[selectedChartMetric] || selectedChartMetric;
                 // Project Specific Analytics
                 const [statsRes, chartRes, reportRes, activityRes] = await Promise.all([
                     projectService.getStats(project._id, startDate, endDate),
-                    projectService.getSubscriptionsChart(project._id, startDate, endDate),
+                    projectService.getSubscriptionsChart(project._id, startDate, endDate, 'both'),
                     projectService.getPerformanceReport(project._id),
                     projectService.getActivityLog(project._id, startDate, endDate, current, pageSize)
                 ]);
 
-                if (statsRes.success) setStats(statsRes.data);
+                let nextStats = statsRes.success ? { ...(statsRes.data || {}) } : null;
                 if (chartRes.success) {
-                    const formattedChart = chartRes.data.chart.xAxis.values.map((val, idx) => ({
-                        name: val,
-                        value: chartRes.data.chart.yAxis.values[idx]
+                    const xAxis = chartRes.data?.chart?.xAxis || {};
+                    const xAxisValues = Array.isArray(xAxis.labels) && xAxis.labels.length
+                        ? xAxis.labels
+                        : (xAxis.values || []);
+                    const legacySubscriberSeries = selectedBackendMetric === 'subscribers'
+                        ? (chartRes.data?.chart?.yAxis?.values || [])
+                        : [];
+                    const metricSeries = Array.isArray(chartRes.data?.chart?.series) && chartRes.data.chart.series.length
+                        ? chartRes.data.chart.series[0]?.values || []
+                        : (
+                            chartRes.data?.chart?.seriesByMetric?.[selectedBackendMetric]?.[0]?.values
+                            || legacySubscriberSeries
+                            || []
+                        );
+                    let formattedChart = xAxisValues.map((val, idx) => ({
+                        name: typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)
+                            ? dayjs(val).format('MMM DD')
+                            : (typeof val === 'number' && dateRange[0]
+                                ? dateRange[0].add(val - 1, 'day').format('MMM DD')
+                                : val),
+                        value: Number(metricSeries[idx] || 0)
                     }));
+
+                    const hasAnyPoint = formattedChart.some((row) => Number(row.value || 0) > 0);
+                    if (!hasAnyPoint && nextStats) {
+                        const fallbackTotal =
+                            selectedBackendMetric === 'visitors'
+                                ? Number(nextStats.visitors || 0)
+                                : selectedBackendMetric === 'clicks'
+                                    ? Number(nextStats.clicks || 0)
+                                    : selectedBackendMetric === 'subscribers'
+                                        ? Number(nextStats.subscribers || 0)
+                                        : selectedBackendMetric === 'unsubscribers'
+                                            ? Number(nextStats.unsubscribers || 0)
+                                            : selectedBackendMetric === 'conversionRate'
+                                                ? Number(nextStats.conversionRate || 0)
+                                                : selectedBackendMetric === 'totalSpend'
+                                                    ? Number(nextStats.totalSpend ?? nextStats.adSpend ?? 0)
+                                                    : 0;
+                        if (fallbackTotal > 0 && formattedChart.length > 0) {
+                            formattedChart = formattedChart.map((row, idx) => ({
+                                ...row,
+                                value: idx === formattedChart.length - 1 ? fallbackTotal : 0,
+                            }));
+                        }
+                    }
+
+                    const chartSpendTotal = Number(
+                        chartRes.data?.totals?.totalSpend?.project ??
+                        chartRes.data?.totals?.project ??
+                        0
+                    );
+                    if (nextStats && chartSpendTotal > 0 && Number(nextStats.totalSpend ?? nextStats.adSpend ?? 0) === 0) {
+                        nextStats.totalSpend = chartSpendTotal;
+                        nextStats.adSpend = chartSpendTotal;
+                    }
+
                     setChartData(formattedChart);
                 }
+                if (nextStats) setStats(nextStats);
                 if (reportRes.success) setPerformanceReport(reportRes.data.report || []);
                 if (activityRes.success) {
                     setActivityLog(activityRes.data.items || []);
@@ -348,7 +425,7 @@ const Analytics = () => {
         } finally {
             setLoading(false);
         }
-    }, [project?._id, dateRange, current, pageSize, message, buildPlatformSummaryFromSeries, normalizePlatformSummary]);
+    }, [project?._id, dateRange, current, pageSize, message, buildPlatformSummaryFromSeries, normalizePlatformSummary, selectedChartMetric]);
 
 
     useEffect(() => {
@@ -496,7 +573,7 @@ const Analytics = () => {
         { title: 'Subscriptions', value: stats?.subscribers?.toLocaleString() || 0 },
         { title: 'Unsubscriptions', value: stats?.unsubscribers?.toLocaleString() || 0, isNegative: true },
         { title: 'Conversion Rate', value: `${stats?.conversionRate || 0}%` },
-        { title: 'Total Ad Spend', value: `$${stats?.adSpend?.toLocaleString() || 0}` },
+        { title: 'Total Ad Spend', value: `PKR ${(stats?.totalSpend ?? stats?.adSpend ?? 0).toLocaleString()}` },
     ];
 
     // we always render both Google and Meta cards, even if their values are
@@ -665,8 +742,8 @@ const Analytics = () => {
                                     { label: 'Unsubscribers', value: data.totalUnsubscribers ?? 0 },
                                     { label: 'Conv. Rate', value: `${data.conversionRate ?? 0}%` },
                                     { label: 'CTR', value: `${data.clickThroughRate ?? 0}%` },
-                                    { label: 'Ad Spend', value: `$${(data.totalSpend ?? 0).toLocaleString()}` },
-                                    { label: 'Cost/Conv.', value: `$${data.costPerConversion ?? 0}` },
+                                    { label: 'Ad Spend', value: `PKR ${(data.totalSpend ?? 0).toLocaleString()}` },
+                                    { label: 'Cost/Conv.', value: `PKR ${data.costPerConversion ?? 0}` },
                                 ];
                                 return (
                                     <Col xs={24} md={12} key={platform}>
@@ -721,17 +798,17 @@ const Analytics = () => {
                         title={
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                                 <Text strong style={{ color: '#084b8a', fontSize: '15px' }}>
-                                    {project ? 'Daily Subscriptions' : 'Platform Analytics'}
+                                    {project ? 'Project Analytics Trend' : 'Platform Analytics'}
                                 </Text>
-                                {!project && (
-                                    <Space>
-                                        <Select
-                                            value={selectedChartMetric}
-                                            onChange={setSelectedChartMetric}
-                                            style={{ width: 180 }}
-                                            options={CHART_METRICS}
-                                            size="middle"
-                                        />
+                                <Space>
+                                    <Select
+                                        value={selectedChartMetric}
+                                        onChange={setSelectedChartMetric}
+                                        style={{ width: 190 }}
+                                        options={CHART_METRICS}
+                                        size="middle"
+                                    />
+                                    {!project && (
                                         <Select
                                             value={selectedChartPlatform}
                                             onChange={setSelectedChartPlatform}
@@ -739,8 +816,8 @@ const Analytics = () => {
                                             options={PLATFORM_FILTERS}
                                             size="middle"
                                         />
-                                    </Space>
-                                )}
+                                    )}
+                                </Space>
                             </div>
                         }
                     >
@@ -774,19 +851,25 @@ const Analytics = () => {
                                         axisLine={false}
                                         tickLine={false}
                                         tick={{ fill: '#94a3b8', fontSize: 11 }}
-                                        allowDecimals={false}
+                                        allowDecimals={selectedChartMetric === 'conversionRate' || selectedChartMetric === 'totalSpend'}
                                         domain={[0, chartMaxValue > 0 ? Math.ceil(chartMaxValue * 1.1) : 1]}
+                                        tickFormatter={(value) => {
+                                            if (selectedChartMetric === 'totalSpend') return `PKR ${Number(value || 0).toFixed(0)}`;
+                                            if (selectedChartMetric === 'conversionRate') return `${Number(value || 0).toFixed(0)}%`;
+                                            return Number(value || 0).toLocaleString();
+                                        }}
                                     />
                                     <Tooltip
                                         contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', padding: '12px' }}
                                         labelStyle={{ fontWeight: 800, color: '#084b8a', marginBottom: '4px' }}
+                                        formatter={(value) => [formatMetricValue(selectedChartMetric, value), getMetricLabel(selectedChartMetric)]}
                                     />
                                     <Legend verticalAlign="top" height={36} iconType="circle" />
                                     {project && (
                                         <Area
                                             type="linear"
                                             dataKey="value"
-                                            name="Subscriptions"
+                                            name={getMetricLabel(selectedChartMetric)}
                                             stroke="#084b8a"
                                             strokeWidth={3}
                                             fillOpacity={1}

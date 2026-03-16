@@ -1,5 +1,5 @@
 import { Layout, Menu } from 'antd'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   DashboardOutlined,
   ProjectOutlined,
@@ -18,10 +18,18 @@ const { Sider } = Layout
 
 const Sidebar = ({ collapsed, setCollapsed }) => {
   const location = useLocation()
+  const navigate = useNavigate()
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const userRole = (user.role || '').toLowerCase();
   const isAdminOrOwner = userRole === 'admin' || userRole === 'owner';
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    sessionStorage.removeItem('auth_redirect_in_progress');
+    navigate('/login', { replace: true });
+  };
 
   const menuItems = [
     {
@@ -154,7 +162,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
               {
                 key: 'logout',
                 icon: <LogoutOutlined />,
-                label: <Link to="/login">Logout</Link>,
+                label: <span onClick={handleLogout}>Logout</span>,
                 style: {
                   color: '#fb7185',
                   borderRadius: '8px',

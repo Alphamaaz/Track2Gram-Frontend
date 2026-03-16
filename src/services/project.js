@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '../config';
+import { handleAuthExpiry } from './session';
 
 /**
  * Common request handler to handle fetch responses and errors
@@ -18,6 +19,7 @@ const request = async (endpoint, options = {}) => {
         const data = await response.json();
 
         if (!response.ok) {
+            handleAuthExpiry(response, data, Boolean(token));
             throw data;
         }
 
@@ -96,10 +98,11 @@ export const projectService = {
     /**
      * Get subscriptions chart data
      */
-    getSubscriptionsChart: (projectId, startDate, endDate) => {
+    getSubscriptionsChart: (projectId, startDate, endDate, metric) => {
         const query = new URLSearchParams();
         if (startDate) query.append('startDate', startDate);
         if (endDate) query.append('endDate', endDate);
+        if (metric) query.append('metric', metric);
         return request(`/projects/${projectId}/subscriptions-chart?${query.toString()}`);
     },
 
@@ -134,11 +137,12 @@ export const projectService = {
     /**
      * Get global dashboard chart data
      */
-    getDashboardChart: (platform, startDate, endDate) => {
+    getDashboardChart: (platform, startDate, endDate, metric) => {
         const query = new URLSearchParams();
         if (platform) query.append('platform', platform);
         if (startDate) query.append('startDate', startDate);
         if (endDate) query.append('endDate', endDate);
+        if (metric) query.append('metric', metric);
         return request(`/projects/dashboard/chart?${query.toString()}`);
     },
 

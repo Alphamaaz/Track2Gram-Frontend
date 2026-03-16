@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Card, Row, Col, Typography, Table, Tag, DatePicker, Space, Input, Select, Skeleton, App, Empty, Button } from 'antd'
-import { ArrowUpOutlined, ArrowDownOutlined, SearchOutlined, DatabaseOutlined, ProjectOutlined } from '@ant-design/icons'
+import { Card, Row, Col, Typography, Table, Tag, DatePicker, Space, Select, Skeleton, App, Empty, Button } from 'antd'
+import { ArrowUpOutlined, ArrowDownOutlined, SearchOutlined, ProjectOutlined } from '@ant-design/icons'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import dayjs from 'dayjs'
 import projectService from '../services/project'
@@ -15,7 +15,49 @@ const METRIC_ALIAS = {
   visitors: 'visitors',
   clicks: 'clicks',
   subscribers: 'subscribers',
+  unsubscribers: 'unsubscribers',
+  unsubscriptions: 'unsubscribers',
+  totalspend: 'totalSpend',
+  totalSpend: 'totalSpend',
+  spend: 'totalSpend',
+  cost: 'totalSpend',
+  conversionrate: 'conversionRate',
+  conversion_rate: 'conversionRate',
   conversionRate: 'conversionRate',
+}
+
+const METRIC_META = {
+  visitors: { label: 'Visitors' },
+  clicks: { label: 'Clicks' },
+  subscribers: { label: 'Subscribers' },
+  unsubscribers: { label: 'Unsubscribers' },
+  totalSpend: { label: 'Total Spend' },
+  conversionRate: { label: 'Conversion Rate' },
+}
+
+const METRIC_DISPLAY_ORDER = ['totalSpend', 'clicks', 'subscribers', 'unsubscribers', 'conversionRate', 'visitors']
+const DEFAULT_CHART_METRICS = ['totalSpend', 'clicks', 'subscribers', 'unsubscribers', 'conversionRate']
+
+const normalizeMetric = (metric) => {
+  const raw = String(metric || '').trim()
+  return METRIC_ALIAS[raw] || METRIC_ALIAS[raw.toLowerCase()] || raw
+}
+
+const toDateLabel = (value, fallbackStartDate) => {
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return dayjs(value).format('MMM DD')
+  }
+  if (typeof value === 'number' && fallbackStartDate) {
+    return fallbackStartDate.add(value - 1, 'day').format('MMM DD')
+  }
+  return String(value ?? '')
+}
+
+const formatMetricValue = (metric, value) => {
+  const num = Number(value || 0)
+  if (metric === 'totalSpend') return `PKR ${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  if (metric === 'conversionRate') return `${num.toFixed(2)}%`
+  return num.toLocaleString()
 }
 
 const Dashboard = () => {
@@ -28,7 +70,7 @@ const Dashboard = () => {
   const [platformFilter, setPlatformFilter] = useState('all')
   const [dateRange, setDateRange] = useState([dayjs().subtract(19, 'days'), dayjs()])
   const [selectedMetric, setSelectedMetric] = useState('clicks')
-  const [availableMetrics, setAvailableMetrics] = useState(['clicks', 'subscribers', 'conversionRate'])
+  const [availableMetrics, setAvailableMetrics] = useState(DEFAULT_CHART_METRICS)
 
   const fetchDashboardData = useCallback(async () => {
     setLoading(true)
@@ -41,39 +83,43 @@ const Dashboard = () => {
     try {
       const [statsRes, chartRes, projectsRes] = await Promise.all([
         projectService.getDashboardStats(platform, startDate, endDate),
-        projectService.getDashboardChart(platform, startDate, endDate),
+        projectService.getDashboardChart(platform, startDate, endDate, selectedMetric),
         projectService.getProjects()
       ])
-      console.log('Dashboard Stats:', statsRes)
-      console.log('Dashboard Chart:', chartRes)
-      console.log('Projects:', projectsRes)
 
       if (statsRes?.success) setStats(statsRes.data)
 
       if (chartRes?.success && chartRes.data?.chart) {
-        const { xAxis, seriesByMetric } = chartRes.data.chart
+        const chart = chartRes.data.chart
+        const apiMetricsRaw = Array.isArray(chartRes.data.availableMetrics)
+          ? chartRes.data.availableMetrics
+          : Object.keys(chart.seriesByMetric || {})
+        const normalizedApiMetrics = apiMetricsRaw
+          .map(normalizeMetric)
+          .filter((m) => !!METRIC_META[m])
+        const orderedMetrics = METRIC_DISPLAY_ORDER.filter((m) => normalizedApiMetrics.includes(m))
+        const nextAvailableMetrics = orderedMetrics.length ? orderedMetrics : DEFAULT_CHART_METRICS
+        setAvailableMetrics(nextAvailableMetrics)
 
-        const apiMetrics = chartRes.data.availableMetrics || Object.keys(seriesByMetric || {})
-        if (apiMetrics.length) setAvailableMetrics(apiMetrics)
+        const selectedFromApi = normalizeMetric(chartRes.data.selectedMetric || selectedMetric)
+        const resolvedMetric = nextAvailableMetrics.includes(selectedFromApi)
+          ? selectedFromApi
+          : nextAvailableMetrics[0]
+        if (resolvedMetric !== selectedMetric) {
+          setSelectedMetric(resolvedMetric)
+        }
 
-        const normalizedMetric = METRIC_ALIAS[selectedMetric] || selectedMetric
-        const resolvedMetric = (seriesByMetric?.[normalizedMetric]
-          ? normalizedMetric
-          : (apiMetrics[0] || 'clicks'))
-        if (resolvedMetric !== selectedMetric) setSelectedMetric(resolvedMetric)
+        const currentSeries = Array.isArray(chart.series)
+          ? chart.series
+          : (chart.seriesByMetric?.[resolvedMetric] || [])
+        const xAxisLabels = Array.isArray(chart?.xAxis?.labels) && chart.xAxis.labels.length
+          ? chart.xAxis.labels
+          : (chart?.xAxis?.values || [])
 
-        const currentSeries = seriesByMetric?.[resolvedMetric] || []
-
-        const formattedData = (xAxis?.values || []).map((val, idx) => {
-          // Professionally format the X-axis value (day number to date)
-          let label = val;
-          if (typeof val === 'number' && dateRange[0]) {
-            label = dateRange[0].add(val - 1, 'day').format('MMM DD')
-          }
-
-          const entry = { name: label }
-          currentSeries.forEach(s => {
-            entry[s.key] = s.values?.[idx] || 0
+        const formattedData = xAxisLabels.map((val, idx) => {
+          const entry = { name: toDateLabel(val, dateRange[0]) }
+          currentSeries.forEach((seriesItem) => {
+            entry[seriesItem.key] = Number(seriesItem.values?.[idx] || 0)
           })
           return entry
         })
@@ -94,10 +140,10 @@ const Dashboard = () => {
   }, [fetchDashboardData])
 
   const statCards = [
-    { title: 'Total Visits', value: stats?.visitors || 0, icon: <SearchOutlined /> },
-    { title: 'Total Clicks', value: stats?.clicks || 0, icon: <ArrowUpOutlined /> },
-    { title: 'Subscriptions', value: stats?.subscribers || 0, icon: <ProjectOutlined /> },
-    { title: 'Unsubscriptions', value: stats?.unsubscribers || 0, icon: <ArrowDownOutlined /> },
+    { title: 'Total Visits', metric: 'visitors', value: stats?.visitors || 0, icon: <SearchOutlined /> },
+    { title: 'Total Clicks', metric: 'clicks', value: stats?.clicks || 0, icon: <ArrowUpOutlined /> },
+    { title: 'Subscribers', metric: 'subscribers', value: stats?.subscribers || 0, icon: <ProjectOutlined /> },
+    { title: 'Unsubscribers', metric: 'unsubscribers', value: stats?.unsubscribers || 0, icon: <ArrowDownOutlined /> },
   ]
 
   const columns = [
@@ -199,7 +245,7 @@ const Dashboard = () => {
                         {stat.title}
                       </Text>
                       <Title level={2} style={{ margin: 0, fontWeight: 800, color: '#084b8a' }}>
-                        {stat.value}
+                        {formatMetricValue(stat.metric, stat.value)}
                       </Title>
                     </div>
                     <div style={{ width: '40px', height: '40px', background: '#fff', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
@@ -223,10 +269,10 @@ const Dashboard = () => {
                   <Select
                     value={selectedMetric}
                     onChange={setSelectedMetric}
-                    style={{ width: 150 }}
+                    style={{ width: 190 }}
                     options={availableMetrics.map(m => ({
                       value: m,
-                      label: m.charAt(0).toUpperCase() + m.slice(1).replace(/([A-Z])/g, ' $1')
+                      label: METRIC_META[m]?.label || m
                     }))}
                   />
                   <Tag color="processing" style={{ borderRadius: '6px' }}>Live Data</Tag>
@@ -254,16 +300,26 @@ const Dashboard = () => {
                     dy={10}
                     interval="preserveStartEnd"
                   />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#94a3b8', fontSize: 11 }}
+                    tickFormatter={(value) => {
+                      if (selectedMetric === 'totalSpend') return `PKR ${Number(value || 0).toFixed(0)}`
+                      if (selectedMetric === 'conversionRate') return `${Number(value || 0).toFixed(0)}%`
+                      return Number(value || 0).toLocaleString()
+                    }}
+                  />
                   <Tooltip
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
                     labelStyle={{ fontWeight: 'bold', marginBottom: '4px' }}
+                    formatter={(value) => [formatMetricValue(selectedMetric, value), METRIC_META[selectedMetric]?.label || 'Value']}
                   />
                   <Legend verticalAlign="top" height={36} iconType="circle" />
                   {chartData.length > 0 && Object.keys(chartData[0]).filter(key => key !== 'name').map(key => (
                     <Area
                       key={key}
-                      name={key.charAt(0).toUpperCase() + key.slice(1) + " Ads"}
+                      name={key === 'all' ? 'All Platforms' : `${key.charAt(0).toUpperCase() + key.slice(1)} Ads`}
                       type="monotone"
                       dataKey={key}
                       stroke={key === 'google' ? '#084b8a' : key === 'meta' ? '#6366f1' : '#94a3b8'}

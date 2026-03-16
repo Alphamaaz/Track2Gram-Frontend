@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Typography, Button, Card, Space, Form, Input, Skeleton, App, Row, Col } from 'antd';
-import { SaveOutlined, SendOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { Typography, Button, Space, Form, Input, Skeleton, App, Row, Col, Alert } from 'antd';
+import { SaveOutlined, SendOutlined } from '@ant-design/icons';
 import { settingsService } from '../services/settings';
 
 const { Title, Text } = Typography;
@@ -11,22 +11,37 @@ const TelegramIntegration = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [tokenVisible, setTokenVisible] = useState(false);
+    const [statusLoading, setStatusLoading] = useState(false);
+    const [telegramStatus, setTelegramStatus] = useState(null);
+
+    const fetchTelegramStatus = useCallback(async (silent = true) => {
+        try {
+            setStatusLoading(true);
+            const response = await settingsService.getTelegramStatus();
+            setTelegramStatus(response?.data || null);
+        } catch (error) {
+            console.error('Failed to fetch Telegram status:', error);
+            if (!silent) {
+                message.error(error?.message || 'Failed to check Telegram integration status');
+            }
+        } finally {
+            setStatusLoading(false);
+        }
+    }, [message]);
 
     const fetchSettings = useCallback(async () => {
         try {
             setLoading(true);
             const data = await settingsService.getSettings();
-            console.log('settings response (TelegramIntegration)', data); // debug token issue
-            console.log('TELEGRAM_BOT_TOKEN present?', 'TELEGRAM_BOT_TOKEN' in data, 'value:', data?.TELEGRAM_BOT_TOKEN);
-            console.log('Response keys:', Object.keys(data));
             form.setFieldsValue(data);
+            await fetchTelegramStatus(true);
         } catch (error) {
             console.error('Failed to fetch settings:', error);
             message.error(error.message || 'Failed to load settings');
         } finally {
             setLoading(false);
         }
-    }, [form, message]);
+    }, [form, message, fetchTelegramStatus]);
 
     useEffect(() => {
         fetchSettings();
@@ -36,7 +51,17 @@ const TelegramIntegration = () => {
         try {
             setSaving(true);
             await settingsService.updateSettings(values);
-            message.success('Telegram settings updated successfully');
+            const statusResponse = await settingsService.getTelegramStatus();
+            const status = statusResponse?.data || null;
+            setTelegramStatus(status);
+
+            if (status?.error) {
+                message.warning(`Settings saved, but Telegram is not ready: ${status.error}`);
+            } else if (!status?.isConfigured) {
+                message.warning('Settings saved, but Telegram integration is incomplete.');
+            } else {
+                message.success('Telegram settings updated successfully');
+            }
             fetchSettings();
         } catch (error) {
             console.error('Failed to update settings:', error);
@@ -74,6 +99,70 @@ const TelegramIntegration = () => {
         justifyContent: 'space-between'
     };
 
+    const statusAlerts = [];
+    if (telegramStatus) {
+        if (!telegramStatus.botTokenSet) {
+            statusAlerts.push({
+                type: 'error',
+                message: 'Telegram bot token is missing',
+                description: 'Add TELEGRAM_BOT_TOKEN from @BotFather to enable bot connectivity.',
+            });
+        }
+        if (!telegramStatus.channelIdSet) {
+            statusAlerts.push({
+                type: 'error',
+                message: 'Telegram channel ID is missing',
+                description: 'Set TELEGRAM_CHANNEL_ID (e.g. -100123456789) for the bot to manage joins.',
+            });
+        }
+        if (telegramStatus.botTokenSet && !telegramStatus.botReachable) {
+            const networkIssue = telegramStatus.errorCode === 'TELEGRAM_NETWORK_TIMEOUT'
+                || telegramStatus.errorCode === 'TELEGRAM_NETWORK_UNREACHABLE';
+            statusAlerts.push({
+                type: 'error',
+                message: networkIssue ? 'Telegram API is unreachable from server' : 'Bot token is invalid or inaccessible',
+                description: telegramStatus.error || (networkIssue
+                    ? 'Server cannot connect to api.telegram.org:443. Check network/firewall/proxy.'
+                    : 'Telegram rejected the bot token. Verify it in BotFather.'),
+            });
+        }
+        if (telegramStatus.botReachable && telegramStatus.channelIdSet && !telegramStatus.channelReachable) {
+            statusAlerts.push({
+                type: 'error',
+                message: 'Bot cannot access the target channel',
+                description: telegramStatus.error || 'Make sure TELEGRAM_CHANNEL_ID is correct and the bot is added to the channel.',
+            });
+        }
+        if (telegramStatus.channelReachable && !telegramStatus.botIsAdmin) {
+            statusAlerts.push({
+                type: 'error',
+                message: 'Bot is not admin in the channel',
+                description: 'Promote the bot to admin in your Telegram channel before running tracking.',
+            });
+        }
+        if (telegramStatus.botIsAdmin && !telegramStatus.canInviteUsers) {
+            statusAlerts.push({
+                type: 'warning',
+                message: 'Missing "Invite Users" permission',
+                description: 'Enable Invite Users permission for the bot admin role to generate join links.',
+            });
+        }
+        if (telegramStatus.error && statusAlerts.length === 0) {
+            statusAlerts.push({
+                type: 'warning',
+                message: 'Telegram integration needs attention',
+                description: telegramStatus.error,
+            });
+        }
+        if (telegramStatus.isConfigured) {
+            statusAlerts.push({
+                type: 'success',
+                message: statusLoading ? 'Checking Telegram integration...' : 'Telegram integration is active',
+                description: 'Bot token, channel access, admin role, and invite permissions are all valid.',
+            });
+        }
+    }
+
     return (
         <div style={{ padding: '16px 20px', maxWidth: '1200px', margin: '0 auto', minHeight: '100vh', background: '#f8fafc' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', gap: '20px', flexWrap: 'wrap' }}>
@@ -107,6 +196,20 @@ const TelegramIntegration = () => {
                     Sync Telegram
                 </Button>
             </div>
+
+            {statusAlerts.length > 0 && (
+                <Space direction="vertical" size={10} style={{ width: '100%', marginBottom: 16 }}>
+                    {statusAlerts.map((alert, index) => (
+                        <Alert
+                            key={`${alert.type}-${index}`}
+                            type={alert.type}
+                            showIcon
+                            message={alert.message}
+                            description={alert.description}
+                        />
+                    ))}
+                </Space>
+            )}
 
             <Form
                 form={form}

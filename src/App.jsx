@@ -34,6 +34,7 @@ const { Content } = Layout
 
 function App() {
   const [collapsed, setCollapsed] = useState(false)
+  const isAuthenticated = Boolean(localStorage.getItem('token'))
 
   return (
     <ConfigProvider
@@ -87,6 +88,7 @@ function App() {
             <Route
               path="/*"
               element={
+                isAuthenticated ? (
                 <Layout style={{ minHeight: '100vh' }}>
                   <Header
                     collapsed={collapsed}
@@ -160,6 +162,9 @@ function App() {
                   </style>
                   {!collapsed && <div className="mobile-overlay" onClick={() => setCollapsed(true)} />}
                 </Layout>
+                ) : (
+                  <Navigate to="/login" replace />
+                )
               }
             />
           </Routes>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Typography, Button, Form, Input, Skeleton, App, Tag, Row, Col, Select, Alert, Space, Card } from 'antd';
-import { SaveOutlined, GoogleOutlined, LoadingOutlined, SyncOutlined, CheckCircleFilled, ApiOutlined, ArrowRightOutlined, ArrowLeftOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { Typography, Button, Form, Input, Skeleton, App, Row, Col, Select, Alert, Space, Card } from 'antd';
+import { GoogleOutlined, LoadingOutlined, SyncOutlined, CheckCircleFilled, ApiOutlined, ArrowRightOutlined, ArrowLeftOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { settingsService } from '../services/settings';
 import { googleAdsService } from '../services/googleAds';
 
@@ -47,7 +47,10 @@ const GoogleAdsIntegration = () => {
         } catch (error) {
             console.error('Failed to fetch connection status:', error);
             const errMsg = error?.message || error?.error || '';
-            if (errMsg.includes("not associated with any Ads accounts")) {
+            if (
+                errMsg.includes("not associated with any Ads accounts")
+                || /permission|access|forbidden|unauthorized/i.test(errMsg)
+            ) {
                 setIntegrationError(errMsg);
             }
         }
@@ -105,6 +108,7 @@ const GoogleAdsIntegration = () => {
     const handleConnect = async () => {
         try {
             setConnecting(true);
+            setIntegrationError(null);
             const response = await googleAdsService.connect();
             if (response.success && response.data.authUrl) {
                 window.location.href = response.data.authUrl;
@@ -117,6 +121,7 @@ const GoogleAdsIntegration = () => {
 
             // Special handling for the "No Ads account" error
             if (errorMessage.includes("not associated with any Ads accounts")) {
+                setIntegrationError(errorMessage);
                 message.error({
                     content: (
                         <span>
@@ -128,6 +133,9 @@ const GoogleAdsIntegration = () => {
                     ),
                     duration: 10,
                 });
+            } else if (/permission|access|forbidden|unauthorized/i.test(errorMessage)) {
+                setIntegrationError(errorMessage);
+                message.error(`Google Ads permission error: ${errorMessage}`);
             } else {
                 message.error(errorMessage);
             }
@@ -204,6 +212,43 @@ const GoogleAdsIntegration = () => {
         { title: 'Select Action', desc: 'Conversion Points' },
         { title: 'Summary', desc: 'Status & Sync' }
     ];
+
+    const statusAlerts = [];
+    if (!connectionStatus.isConnected) {
+        statusAlerts.push({
+            type: 'warning',
+            message: 'Google Ads is not connected',
+            description: 'Connect a Google account via OAuth before configuring customer and conversion actions.',
+        });
+    }
+    if (connectionStatus.isConnected && !connectionStatus.customerId) {
+        statusAlerts.push({
+            type: 'error',
+            message: 'Google Ads Customer ID is missing',
+            description: 'Add GOOGLE_ADS_CUSTOMER_ID to enable campaign and spend sync.',
+        });
+    }
+    if (connectionStatus.syncStatus === 'failed') {
+        statusAlerts.push({
+            type: 'error',
+            message: 'Last Google Ads sync failed',
+            description: connectionStatus.syncError || 'Sync failed due to an unknown error.',
+        });
+    }
+    if (connectionStatus.syncError && /permission|access|forbidden|unauthorized|not associated/i.test(String(connectionStatus.syncError))) {
+        statusAlerts.push({
+            type: 'error',
+            message: 'Google Ads permission issue detected',
+            description: connectionStatus.syncError,
+        });
+    }
+    if (connectionStatus.isConnected && connectionStatus.customerId && connectionStatus.syncStatus !== 'failed') {
+        statusAlerts.push({
+            type: 'success',
+            message: 'Google Ads connection looks healthy',
+            description: 'OAuth and customer mapping are available. You can run sync and conversion tracking.',
+        });
+    }
 
     const renderStep1 = () => (
         <div style={{ textAlign: 'center', padding: '40px 0' }}>
@@ -399,6 +444,20 @@ const GoogleAdsIntegration = () => {
                 </Title>
                 <Text type="secondary">Complete the 4-step process to connect and configure your tracking.</Text>
             </div>
+
+            {statusAlerts.length > 0 && (
+                <Space direction="vertical" size={12} style={{ width: '100%', marginBottom: 20 }}>
+                    {statusAlerts.map((alert, idx) => (
+                        <Alert
+                            key={`${alert.type}-${idx}`}
+                            type={alert.type}
+                            showIcon
+                            message={alert.message}
+                            description={alert.description}
+                        />
+                    ))}
+                </Space>
+            )}
 
             {integrationError && (
                 <Alert

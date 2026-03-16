@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import loginImage from '../assets/login.png'
 import logo from '../assets/tyy 1.svg'
 import authService from '../services/auth'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 const { Title, Text } = Typography
 
@@ -11,6 +11,10 @@ export const Login = () => {
   const { message } = App.useApp()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    sessionStorage.removeItem('auth_redirect_in_progress')
+  }, [])
 
   const onFinish = async (values) => {
     setLoading(true)
@@ -23,6 +27,7 @@ export const Login = () => {
       // Store the token and user info
       localStorage.setItem('token', response.token)
       localStorage.setItem('user', JSON.stringify(response.user))
+      sessionStorage.removeItem('auth_redirect_in_progress')
 
       message.success('Login successful!')
       navigate('/dashboard')
