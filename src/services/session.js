@@ -26,8 +26,10 @@ function extractMessage(payload) {
 function isSessionExpired(response, payload, hasToken) {
     const msg = extractMessage(payload).toLowerCase();
     const messageLooksExpired = /token.*expired|jwt expired|invalid token|session expired/.test(msg);
+    const workspaceRevoked = /workspace is deactivated|workspace.*suspended|workspace deactivated/.test(msg);
     const unauthorized = response?.status === 401;
-    return messageLooksExpired || (unauthorized && hasToken);
+    const workspaceForbidden = response?.status === 403 && workspaceRevoked;
+    return messageLooksExpired || (unauthorized && hasToken) || workspaceForbidden;
 }
 
 function shouldRedirectToLogin() {

@@ -219,18 +219,27 @@ const Projects = () => {
                         font-weight: 600 !important;
                         font-size: 13px !important;
                     }
-                    .ant-table-wrapper .ant-table-scrollbar {
-                      display: none !important;
+                    .projects-table .ant-table-content,
+                    .projects-table .ant-table-body {
+                      overflow-x: auto !important;
                     }
-                    /* Hide scrollbar track */
-                    .ant-table-body::-webkit-scrollbar,
-                    .ant-table-content::-webkit-scrollbar {
-                      display: none !important;
+                    .projects-table .ant-table-content::-webkit-scrollbar,
+                    .projects-table .ant-table-body::-webkit-scrollbar {
+                      height: 10px;
                     }
-                    .ant-table-body,
-                    .ant-table-content {
-                      -ms-overflow-style: none !important;
-                      scrollbar-width: none !important;
+                    .projects-table .ant-table-content::-webkit-scrollbar-track,
+                    .projects-table .ant-table-body::-webkit-scrollbar-track {
+                      background: #eef2f7;
+                      border-radius: 999px;
+                    }
+                    .projects-table .ant-table-content::-webkit-scrollbar-thumb,
+                    .projects-table .ant-table-body::-webkit-scrollbar-thumb {
+                      background: #b8c2cf;
+                      border-radius: 999px;
+                    }
+                    .projects-table .ant-table-content,
+                    .projects-table .ant-table-body {
+                      scrollbar-width: auto !important;
                     }
                     @media (max-width: 576px) {
                         .projects-header {
@@ -288,6 +297,7 @@ const Projects = () => {
         </div>
 
         <Table
+          className="projects-table"
           columns={columns}
           dataSource={filteredData}
           rowKey="_id"
