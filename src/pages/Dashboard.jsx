@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Card, Row, Col, Typography, Table, Tag, DatePicker, Space, Select, Skeleton, App, Empty, Button } from 'antd'
 import { ArrowUpOutlined, ArrowDownOutlined, SearchOutlined, ProjectOutlined } from '@ant-design/icons'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
@@ -35,6 +35,25 @@ const METRIC_META = {
   conversionRate: { label: 'Conversion Rate' },
 }
 
+// Consistent colors for each KPI metric line
+const METRIC_COLORS = {
+  visitors: '#10b981', // green
+  clicks: '#084b8a', // brand blue
+  subscribers: '#6366f1', // indigo
+  unsubscribers: '#ef4444', // red
+  totalSpend: '#0ea5e9', // sky blue
+  conversionRate: '#f59e0b', // amber
+};
+
+const METRIC_GRADIENT_IDS = {
+  visitors: 'gradVisitors',
+  clicks: 'gradClicks',
+  subscribers: 'gradSubscribers',
+  unsubscribers: 'gradUnsubscribers',
+  totalSpend: 'gradSpend',
+  conversionRate: 'gradConvRate',
+};
+
 const METRIC_DISPLAY_ORDER = ['totalSpend', 'clicks', 'subscribers', 'unsubscribers', 'conversionRate', 'visitors']
 const DEFAULT_CHART_METRICS = ['totalSpend', 'clicks', 'subscribers', 'unsubscribers', 'conversionRate']
 
@@ -69,21 +88,24 @@ const Dashboard = () => {
   const [projects, setProjects] = useState([])
   const [platformFilter, setPlatformFilter] = useState('all')
   const [dateRange, setDateRange] = useState([dayjs().subtract(19, 'days'), dayjs()])
-  const [selectedMetric, setSelectedMetric] = useState('clicks')
+
+  // Now an array of selected metrics
+  const [selectedMetrics, setSelectedMetrics] = useState(['clicks'])
+  const [seriesByMetric, setSeriesByMetric] = useState(null)
   const [availableMetrics, setAvailableMetrics] = useState(DEFAULT_CHART_METRICS)
+  const [xAxisLabels, setXAxisLabels] = useState([])
 
   const fetchDashboardData = useCallback(async () => {
     setLoading(true)
     const startDate = dateRange[0]?.format('YYYY-MM-DD')
     const endDate = dateRange[1]?.format('YYYY-MM-DD')
-
-    // Use the exact filter or the default "meta,google"
     const platform = platformFilter
 
     try {
+      // Request 'both' to get all metric series at once
       const [statsRes, chartRes, projectsRes] = await Promise.all([
         projectService.getDashboardStats(platform, startDate, endDate),
-        projectService.getDashboardChart(platform, startDate, endDate, selectedMetric),
+        projectService.getDashboardChart(platform, startDate, endDate, 'both'),
         projectService.getProjects()
       ])
 
@@ -101,29 +123,13 @@ const Dashboard = () => {
         const nextAvailableMetrics = orderedMetrics.length ? orderedMetrics : DEFAULT_CHART_METRICS
         setAvailableMetrics(nextAvailableMetrics)
 
-        const selectedFromApi = normalizeMetric(chartRes.data.selectedMetric || selectedMetric)
-        const resolvedMetric = nextAvailableMetrics.includes(selectedFromApi)
-          ? selectedFromApi
-          : nextAvailableMetrics[0]
-        if (resolvedMetric !== selectedMetric) {
-          setSelectedMetric(resolvedMetric)
-        }
+        const rawSeriesByMetric = chart.seriesByMetric || {}
+        setSeriesByMetric(rawSeriesByMetric)
 
-        const currentSeries = Array.isArray(chart.series)
-          ? chart.series
-          : (chart.seriesByMetric?.[resolvedMetric] || [])
-        const xAxisLabels = Array.isArray(chart?.xAxis?.labels) && chart.xAxis.labels.length
+        const labels = Array.isArray(chart?.xAxis?.labels) && chart.xAxis.labels.length
           ? chart.xAxis.labels
           : (chart?.xAxis?.values || [])
-
-        const formattedData = xAxisLabels.map((val, idx) => {
-          const entry = { name: toDateLabel(val, dateRange[0]) }
-          currentSeries.forEach((seriesItem) => {
-            entry[seriesItem.key] = Number(seriesItem.values?.[idx] || 0)
-          })
-          return entry
-        })
-        setChartData(formattedData)
+        setXAxisLabels(labels)
       }
 
       if (projectsRes?.success) setProjects(projectsRes.data || [])
@@ -133,7 +139,32 @@ const Dashboard = () => {
     } finally {
       setLoading(false)
     }
-  }, [dateRange, platformFilter, message, selectedMetric])
+  }, [dateRange, platformFilter, message]) // Removed selectedMetrics dependency
+
+  useEffect(() => {
+    // Re-build chart data when series, xAxisLabels, or selectedMetrics change
+    if (!seriesByMetric || !xAxisLabels.length) return
+
+    const formattedData = xAxisLabels.map((val, idx) => {
+      const entry = { name: toDateLabel(val, dateRange[0]) }
+      selectedMetrics.forEach((metric) => {
+        const seriesArr = seriesByMetric[metric] || []
+        if (platformFilter === 'all') {
+          const allSeries = seriesArr.find(s => s.key === 'all')
+          if (allSeries) {
+            entry[metric] = Number(allSeries.values?.[idx] || 0)
+          } else {
+            entry[metric] = seriesArr.reduce((sum, s) => sum + Number(s.values?.[idx] || 0), 0)
+          }
+        } else {
+          const targetSeries = seriesArr.find(s => s.key === platformFilter)
+          entry[metric] = Number(targetSeries?.values?.[idx] || 0)
+        }
+      })
+      return entry
+    })
+    setChartData(formattedData)
+  }, [seriesByMetric, xAxisLabels, selectedMetrics, platformFilter, dateRange])
 
   useEffect(() => {
     fetchDashboardData()
@@ -193,6 +224,18 @@ const Dashboard = () => {
   ]
 
   const filteredProjects = projects;
+
+  const chartMaxValue = useMemo(() => {
+    let max = 0;
+    chartData.forEach((row) => {
+      Object.entries(row).forEach(([k, v]) => {
+        if (k === 'name') return;
+        const n = Number(v || 0);
+        if (n > max) max = n;
+      });
+    });
+    return max;
+  }, [chartData]);
 
   return (
     <div style={{ padding: '0 clamp(12px, 3vw, 24px)', paddingBottom: '40px', maxWidth: '1600px', margin: '0 auto', background: '#F8FAFC' }}>
@@ -265,11 +308,15 @@ const Dashboard = () => {
             title={
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                 <Text strong style={{ color: '#1e293b', fontSize: '16px' }}>Performance Overview</Text>
-                <Space>
+                <Space wrap>
                   <Select
-                    value={selectedMetric}
-                    onChange={setSelectedMetric}
-                    style={{ width: 190 }}
+                    mode="multiple"
+                    value={selectedMetrics}
+                    onChange={(vals) => {
+                      if (vals && vals.length > 0) setSelectedMetrics(vals)
+                    }}
+                    style={{ minWidth: 200, maxWidth: 400 }}
+                    maxTagCount="responsive"
                     options={availableMetrics.map(m => ({
                       value: m,
                       label: METRIC_META[m]?.label || m
@@ -284,12 +331,15 @@ const Dashboard = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
-                    {Object.entries({ google: '#084b8a', meta: '#6366f1', other: '#94a3b8' }).map(([key, color]) => (
-                      <linearGradient key={`color${key}`} id={`color${key}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={color} stopOpacity={0.15} />
-                        <stop offset="95%" stopColor={color} stopOpacity={0} />
-                      </linearGradient>
-                    ))}
+                    {Object.entries(METRIC_GRADIENT_IDS).map(([metric, id]) => {
+                      const color = METRIC_COLORS[metric] || '#084b8a';
+                      return (
+                        <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={color} stopOpacity={0.15} />
+                          <stop offset="95%" stopColor={color} stopOpacity={0} />
+                        </linearGradient>
+                      );
+                    })}
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis
@@ -304,30 +354,41 @@ const Dashboard = () => {
                     axisLine={false}
                     tickLine={false}
                     tick={{ fill: '#94a3b8', fontSize: 11 }}
+                    allowDecimals={selectedMetrics.some(m => m === 'conversionRate' || m === 'totalSpend')}
+                    domain={[0, chartMaxValue > 0 ? Math.ceil(chartMaxValue * 1.1) : 1]}
                     tickFormatter={(value) => {
-                      if (selectedMetric === 'totalSpend') return `PKR ${Number(value || 0).toFixed(0)}`
-                      if (selectedMetric === 'conversionRate') return `${Number(value || 0).toFixed(0)}%`
+                      const activeMetric = selectedMetrics[0] || 'clicks';
+                      if (activeMetric === 'totalSpend') return `PKR ${Number(value || 0).toFixed(0)}`
+                      if (activeMetric === 'conversionRate') return `${Number(value || 0).toFixed(0)}%`
                       return Number(value || 0).toLocaleString()
                     }}
                   />
                   <Tooltip
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
-                    labelStyle={{ fontWeight: 'bold', marginBottom: '4px' }}
-                    formatter={(value) => [formatMetricValue(selectedMetric, value), METRIC_META[selectedMetric]?.label || 'Value']}
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', padding: '12px' }}
+                    labelStyle={{ fontWeight: 800, color: '#084b8a', marginBottom: '4px' }}
+                    formatter={(value, name) => [formatMetricValue(name, value), METRIC_META[name]?.label || name]}
                   />
                   <Legend verticalAlign="top" height={36} iconType="circle" />
-                  {chartData.length > 0 && Object.keys(chartData[0]).filter(key => key !== 'name').map(key => (
-                    <Area
-                      key={key}
-                      name={key === 'all' ? 'All Platforms' : `${key.charAt(0).toUpperCase() + key.slice(1)} Ads`}
-                      type="monotone"
-                      dataKey={key}
-                      stroke={key === 'google' ? '#084b8a' : key === 'meta' ? '#6366f1' : '#94a3b8'}
-                      strokeWidth={3}
-                      fillOpacity={1}
-                      fill={`url(#color${['google', 'meta'].includes(key) ? key : 'other'})`}
-                    />
-                  ))}
+                  {selectedMetrics.map((metric) => {
+                    const color = METRIC_COLORS[metric] || '#084b8a';
+                    const gradId = METRIC_GRADIENT_IDS[metric] || 'gradClicks';
+                    return (
+                      <Area
+                        key={metric}
+                        name={METRIC_META[metric]?.label || metric}
+                        type="monotone"
+                        dataKey={metric}
+                        stroke={color}
+                        strokeWidth={3}
+                        fillOpacity={1}
+                        fill={`url(#${gradId})`}
+                        dot={{ r: 4, fill: color, strokeWidth: 2, stroke: '#fff' }}
+                        activeDot={{ r: 5, strokeWidth: 0 }}
+                        connectNulls
+                        animationDuration={1200}
+                      />
+                    );
+                  })}
                 </AreaChart>
               </ResponsiveContainer>
             </div>

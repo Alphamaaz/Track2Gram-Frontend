@@ -62,6 +62,28 @@ const PLATFORM_COLORS = {
     other: '#94a3b8',
 };
 
+// Colors for each KPI metric line in the project analytics chart
+const METRIC_COLORS = {
+    visits: '#10b981',
+    visitors: '#10b981',
+    clicks: '#084b8a',
+    subscribers: '#6366f1',
+    unsubscribers: '#ef4444',
+    conversionRate: '#f59e0b',
+    totalSpend: '#0ea5e9',
+};
+
+// Gradient IDs for each KPI metric
+const METRIC_GRADIENT_IDS = {
+    visits: 'gradVisits',
+    visitors: 'gradVisits',
+    clicks: 'gradClicks',
+    subscribers: 'gradSubscribers',
+    unsubscribers: 'gradUnsubscribers',
+    conversionRate: 'gradConvRate',
+    totalSpend: 'gradSpend',
+};
+
 const EMPTY_PLATFORM_METRICS = {
     totalVisits: 0,
     totalClicks: 0,
@@ -81,11 +103,9 @@ const Analytics = () => {
     const { message } = App.useApp();
     const project = location.state?.project;
 
-    
     // State for data
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState(null);
-    const [chartData, setChartData] = useState([]);
     const [performanceReport, setPerformanceReport] = useState([]);
     const [activityLog, setActivityLog] = useState([]);
     const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 });
@@ -105,11 +125,15 @@ const Analytics = () => {
 
     const [platformSummary, setPlatformSummary] = useState(null);
     const [rawChartByPlatform, setRawChartByPlatform] = useState(null);
-    const [projectChartSeries, setProjectChartSeries] = useState(null);
-    const [spendSeriesByPlatform, setSpendSeriesByPlatform] = useState(null);
     const [xAxisDates, setXAxisDates] = useState([]);
-    const [selectedChartMetric, setSelectedChartMetric] = useState('clicks');
+
+    // Multi-select: array of selected metric keys for analytics chart (global & project)
+    const [selectedChartMetrics, setSelectedChartMetrics] = useState(['clicks']);
     const [selectedChartPlatform, setSelectedChartPlatform] = useState('all');
+
+    // Stores all metric series for project analytics (from metric=both response)
+    const [projectSeriesByMetric, setProjectSeriesByMetric] = useState(null);
+    const [projectXAxisDates, setProjectXAxisDates] = useState([]);
 
     const resolveMetricSeries = useCallback((platformData, metric) => {
         if (!platformData) return [];
@@ -182,12 +206,6 @@ const Analytics = () => {
         };
     }, []);
 
-    // when the backend accidentally copies the google time-series into the meta
-    // slot we end up with a perfectly valid meta array that just happens to be a
-    // duplicate of google. the chart logic then treats those values as real data
-    // and draws the spike even though the platformSummary reports zero. this
-    // helper detects the condition and zeroes the offending arrays so the UI can
-    // correctly render an empty chart.
     const sanitizeSeriesByPlatform = useCallback((seriesByPlatform = {}) => {
         const google = seriesByPlatform.google || {};
         const hasGoogleData = Object.values(google).some(arr =>
@@ -201,7 +219,6 @@ const Analytics = () => {
                 return;
             }
 
-            // compare every array in `data` to the corresponding google array
             let identical = true;
             Object.entries(data || {}).forEach(([key, arr]) => {
                 const garr = google[key] || [];
@@ -218,7 +235,6 @@ const Analytics = () => {
             });
 
             if (identical) {
-                // replace with same-shaped zero arrays
                 out[platform] = Object.keys(data || {}).reduce((acc, key) => {
                     acc[key] = (data[key] || []).map(() => 0);
                     return acc;
@@ -230,10 +246,6 @@ const Analytics = () => {
         return out;
     }, []);
 
-    // helper that ensures the platform summary is sane – if the API accidentally
-    // duplicates google data into the "meta" key or otherwise returns two
-    // identical non‑zero records we treat the second platform as empty so the UI
-    // doesn’t show duplicate cards or double counts in the top stats.
     const sanitizePlatformSummary = useCallback((summary = {}) => {
         const google = summary.google || { ...EMPTY_PLATFORM_METRICS };
         const meta = summary.meta || { ...EMPTY_PLATFORM_METRICS };
@@ -252,11 +264,9 @@ const Analytics = () => {
         return { google, meta };
     }, []);
 
-
     const fetchAllData = useCallback(async () => {
         setLoading(true);
         if (!project?._id) {
-            // Reset global analytics state before every fetch to avoid stale UI when responses change.
             setPlatformSummary(null);
             setStats(null);
         }
@@ -265,8 +275,7 @@ const Analytics = () => {
 
         try {
             if (project?._id) {
-                const selectedBackendMetric = PROJECT_BACKEND_METRIC_MAP[selectedChartMetric] || selectedChartMetric;
-                // Project Specific Analytics
+                // Project Specific Analytics — always request metric=both so all series are available
                 const [statsRes, chartRes, reportRes, activityRes] = await Promise.all([
                     projectService.getStats(project._id, startDate, endDate),
                     projectService.getSubscriptionsChart(project._id, startDate, endDate, 'both'),
@@ -280,49 +289,43 @@ const Analytics = () => {
                     const xAxisValues = Array.isArray(xAxis.labels) && xAxis.labels.length
                         ? xAxis.labels
                         : (xAxis.values || []);
-                    const legacySubscriberSeries = selectedBackendMetric === 'subscribers'
-                        ? (chartRes.data?.chart?.yAxis?.values || [])
-                        : [];
-                    const metricSeries = Array.isArray(chartRes.data?.chart?.series) && chartRes.data.chart.series.length
-                        ? chartRes.data.chart.series[0]?.values || []
-                        : (
-                            chartRes.data?.chart?.seriesByMetric?.[selectedBackendMetric]?.[0]?.values
-                            || legacySubscriberSeries
-                            || []
-                        );
-                    let formattedChart = xAxisValues.map((val, idx) => ({
-                        name: typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)
+
+                    // Build formatted x-axis date labels for project chart
+                    const formattedDates = xAxisValues.map((val) =>
+                        typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)
                             ? dayjs(val).format('MMM DD')
                             : (typeof val === 'number' && dateRange[0]
                                 ? dateRange[0].add(val - 1, 'day').format('MMM DD')
-                                : val),
-                        value: Number(metricSeries[idx] || 0)
-                    }));
+                                : String(val))
+                    );
+                    setProjectXAxisDates(formattedDates);
 
-                    const hasAnyPoint = formattedChart.some((row) => Number(row.value || 0) > 0);
-                    if (!hasAnyPoint && nextStats) {
-                        const fallbackTotal =
-                            selectedBackendMetric === 'visitors'
-                                ? Number(nextStats.visitors || 0)
-                                : selectedBackendMetric === 'clicks'
-                                    ? Number(nextStats.clicks || 0)
-                                    : selectedBackendMetric === 'subscribers'
-                                        ? Number(nextStats.subscribers || 0)
-                                        : selectedBackendMetric === 'unsubscribers'
-                                            ? Number(nextStats.unsubscribers || 0)
-                                            : selectedBackendMetric === 'conversionRate'
-                                                ? Number(nextStats.conversionRate || 0)
-                                                : selectedBackendMetric === 'totalSpend'
-                                                    ? Number(nextStats.totalSpend ?? nextStats.adSpend ?? 0)
-                                                    : 0;
-                        if (fallbackTotal > 0 && formattedChart.length > 0) {
-                            formattedChart = formattedChart.map((row, idx) => ({
-                                ...row,
-                                value: idx === formattedChart.length - 1 ? fallbackTotal : 0,
-                            }));
+                    // Store all metric series so switching/adding metrics requires no re-fetch
+                    const rawSeriesByMetric = chartRes.data?.chart?.seriesByMetric || {};
+                    // Normalise: each key is an array of {key, values} — extract values[0] for project-level data
+                    const normalised = {};
+                    Object.entries(rawSeriesByMetric).forEach(([metricKey, seriesArr]) => {
+                        if (Array.isArray(seriesArr) && seriesArr.length > 0) {
+                            normalised[metricKey] = seriesArr[0]?.values || [];
+                        } else {
+                            normalised[metricKey] = [];
+                        }
+                    });
+                    // Also handle legacy single series
+                    if (chartRes.data?.chart?.series) {
+                        const singleSeries = chartRes.data.chart.series;
+                        if (Array.isArray(singleSeries) && singleSeries.length > 0) {
+                            const metricKey = chartRes.data?.selectedMetric || 'clicks';
+                            if (!normalised[metricKey]) {
+                                normalised[metricKey] = singleSeries[0]?.values || [];
+                            }
                         }
                     }
+                    setProjectSeriesByMetric(normalised);
 
+                    setProjectSeriesByMetric(normalised);
+
+                    // Patch stats spend from chart if missing
                     const chartSpendTotal = Number(
                         chartRes.data?.totals?.totalSpend?.project ??
                         chartRes.data?.totals?.project ??
@@ -332,8 +335,6 @@ const Analytics = () => {
                         nextStats.totalSpend = chartSpendTotal;
                         nextStats.adSpend = chartSpendTotal;
                     }
-
-                    setChartData(formattedChart);
                 }
                 if (nextStats) setStats(nextStats);
                 if (reportRes.success) setPerformanceReport(reportRes.data.report || []);
@@ -358,14 +359,9 @@ const Analytics = () => {
                         ? normalizePlatformSummary(summaryByPlatform)
                         : normalizePlatformSummary(computedPlatformSummary);
 
-                    // make sure we don't accidentally show the same numbers twice
                     effectivePlatformSummary = sanitizePlatformSummary(effectivePlatformSummary);
                     setPlatformSummary(effectivePlatformSummary);
 
-                    // derive global stats directly from the platform summary so that the
-                    // top cards always match the breakdown below; this also avoids any
-                    // weirdness if the backend returns a projectSummary that doesn’t
-                    // line up with the per-platform totals.
                     const googleSummary = effectivePlatformSummary.google || { ...EMPTY_PLATFORM_METRICS };
                     const metaSummary = effectivePlatformSummary.meta || { ...EMPTY_PLATFORM_METRICS };
                     const totalVisits = googleSummary.totalVisits + metaSummary.totalVisits;
@@ -386,30 +382,9 @@ const Analytics = () => {
                         adSpend: totalSpend,
                     });
 
-                    const chartProject = chart?.project || {};
-                    const chartTotals = {
-                        totalVisits: (chartProject.visits || []).reduce((a, b) => a + Number(b || 0), 0),
-                        totalClicks: (chartProject.clicks || []).reduce((a, b) => a + Number(b || 0), 0),
-                        totalSubscribers: (chartProject.subscribers || []).reduce((a, b) => a + Number(b || 0), 0),
-                        totalUnsubscribers: (chartProject.unsubscribers || []).reduce((a, b) => a + Number(b || 0), 0),
-                    };
-                    const chartConversionRate = chartTotals.totalClicks > 0
-                        ? Number(((chartTotals.totalSubscribers / chartTotals.totalClicks) * 100).toFixed(2))
-                        : 0;
-
-                    // Store raw chart data for metric switching
                     if (chart?.xAxis) {
-                        // clean up any duplicated google-series before storing; this
-                        // keeps the UI from plotting phantom spikes when only one
-                        // platform has real data.
                         const cleanedByPlatform = sanitizeSeriesByPlatform(chart.byPlatform || {});
                         setRawChartByPlatform(cleanedByPlatform);
-
-                        const cleanedSpend = sanitizeSeriesByPlatform(chart.spendByPlatform || {});
-                        setSpendSeriesByPlatform(cleanedSpend);
-
-                        setProjectChartSeries(chart.project || null);
-                        // keep chart filter stable after refresh
                         setSelectedChartPlatform(prev => (['all', 'google', 'meta'].includes(prev) ? prev : 'all'));
                         setXAxisDates(chart.xAxis.values.map(val =>
                             dateRange[0] ? dateRange[0].add(val - 1, 'day').format('MMM DD') : `Day ${val}`
@@ -425,127 +400,65 @@ const Analytics = () => {
         } finally {
             setLoading(false);
         }
-    }, [project?._id, dateRange, current, pageSize, message, buildPlatformSummaryFromSeries, normalizePlatformSummary, selectedChartMetric]);
-
+    }, [project?._id, dateRange, current, pageSize, message, buildPlatformSummaryFromSeries, normalizePlatformSummary, sanitizePlatformSummary, sanitizeSeriesByPlatform]);
 
     useEffect(() => {
         fetchAllData();
     }, [fetchAllData]);
 
-    // Build chart data reactively when metric or raw data changes
     const globalChartData = useMemo(() => {
-        if (!xAxisDates.length) return [];
-        const platformOnlyMetrics = new Set(['totalSpend']);
-        const isPlatformOnly = platformOnlyMetrics.has(selectedChartMetric);
+        if (project) return [];
+        if (!rawChartByPlatform || !xAxisDates.length) return [];
+
         const rows = xAxisDates.map((name, idx) => {
             const entry = { name };
-            if (isPlatformOnly) {
+            selectedChartMetrics.forEach((metric) => {
+                const backendKey = PROJECT_BACKEND_METRIC_MAP[metric] || metric;
+                
                 if (selectedChartPlatform === 'all') {
-                    const google = Number(spendSeriesByPlatform?.google?.[idx] ?? 0);
-                    const meta = Number(spendSeriesByPlatform?.meta?.[idx] ?? 0);
-                    entry.google = google;
-                    entry.meta = meta;
+                    // Sum across all platforms returned by backend
+                    let sum = 0;
+                    Object.values(rawChartByPlatform).forEach((platformData) => {
+                        const series = resolveMetricSeries(platformData, backendKey);
+                        sum += Number(series[idx] || 0);
+                    });
+                    entry[metric] = sum;
                 } else {
-                    entry[selectedChartPlatform] = Number(spendSeriesByPlatform?.[selectedChartPlatform]?.[idx] ?? 0);
+                    // Specific platform
+                    const platformData = rawChartByPlatform[selectedChartPlatform];
+                    const series = resolveMetricSeries(platformData, backendKey);
+                    entry[metric] = Number(series[idx] || 0);
                 }
-            } else if (selectedChartMetric === 'conversionRate') {
-                if (selectedChartPlatform === 'all') {
-                    const c = Number(projectChartSeries?.clicks?.[idx] ?? 0);
-                    const s = Number(projectChartSeries?.subscribers?.[idx] ?? 0);
-                    entry.all_projects = c > 0 ? Number(((s / c) * 100).toFixed(2)) : 0;
-                } else {
-                    const clicks = Number(rawChartByPlatform?.[selectedChartPlatform]?.clicks?.[idx] ?? 0);
-                    const subscribers = Number(rawChartByPlatform?.[selectedChartPlatform]?.subscribers?.[idx] ?? 0);
-                    entry[selectedChartPlatform] = clicks > 0 ? Number(((subscribers / clicks) * 100).toFixed(2)) : 0;
-                }
-            } else {
-                if (selectedChartPlatform === 'all') {
-                    const projectKey = selectedChartMetric === 'visits' ? 'visits' : selectedChartMetric;
-                    entry.all_projects = Number(projectChartSeries?.[projectKey]?.[idx] ?? 0);
-                } else {
-                    const series = resolveMetricSeries(rawChartByPlatform?.[selectedChartPlatform], selectedChartMetric);
-                    entry[selectedChartPlatform] = Number(series?.[idx] ?? 0);
-                }
-            }
+            });
             return entry;
         });
-
-        // Fallback for sparse/misaligned platform series: use summary totals on last day.
-        const hasAnyValue = rows.some((row) =>
-            Object.entries(row).some(([k, v]) => k !== 'name' && Number(v) > 0)
-        );
-        if (!hasAnyValue && platformSummary && rows.length) {
-            const summaryMetricKey = selectedChartMetric === 'visits'
-                ? 'totalVisits'
-                : selectedChartMetric === 'clicks'
-                    ? 'totalClicks'
-                    : selectedChartMetric === 'subscribers'
-                        ? 'totalSubscribers'
-                        : selectedChartMetric === 'unsubscribers'
-                            ? 'totalUnsubscribers'
-                            : selectedChartMetric === 'conversionRate'
-                                ? 'conversionRate'
-                                : null;
-
-            if (summaryMetricKey) {
-                const last = rows[rows.length - 1];
-                if (selectedChartPlatform === 'all') {
-                    if (isPlatformOnly) {
-                        Object.entries(platformSummary).forEach(([platform, summary]) => {
-                            last[String(platform).toLowerCase()] = Number(summary?.[summaryMetricKey] ?? 0);
-                        });
-                    } else {
-                        const total = Object.values(platformSummary).reduce(
-                            (sum, summary) => sum + Number(summary?.[summaryMetricKey] ?? 0),
-                            0
-                        );
-                        last.all_projects = total;
-                    }
-                } else {
-                    last[selectedChartPlatform] = Number(platformSummary?.[selectedChartPlatform]?.[summaryMetricKey] ?? 0);
-                }
-            }
-        }
-
         return rows;
     }, [
         rawChartByPlatform,
         xAxisDates,
-        selectedChartMetric,
+        selectedChartMetrics,
         selectedChartPlatform,
         resolveMetricSeries,
-        platformSummary,
-        projectChartSeries,
-        spendSeriesByPlatform,
+        project
     ]);
 
-    // collect only keys for series that actually contain a non‑zero value.
-    const globalSeriesKeys = useMemo(() => {
-        if (!globalChartData.length) return [];
-        const keys = new Set();
-        globalChartData.forEach((row) => {
-            Object.entries(row || {}).forEach(([k, v]) => {
-                if (k === 'name') return;
-                if (Number(v) > 0) keys.add(k);
+
+    // Build project-specific multi-metric chart data from stored series
+    const projectMultiChartData = useMemo(() => {
+        if (!project || !projectXAxisDates.length || !projectSeriesByMetric) return [];
+        return projectXAxisDates.map((name, idx) => {
+            const entry = { name };
+            selectedChartMetrics.forEach((metric) => {
+                const backendKey = PROJECT_BACKEND_METRIC_MAP[metric] || metric;
+                const series = projectSeriesByMetric[backendKey] || [];
+                entry[metric] = Number(series[idx] ?? 0);
             });
+            return entry;
         });
-        return Array.from(keys);
-    }, [globalChartData]);
-
-    const displaySeriesKeys = useMemo(() => {
-        if (project) return [];
-        // if we found any real data points, use those keys; otherwise render empty
-        // placeholder (handled further down).
-        if (globalSeriesKeys.length > 0) return globalSeriesKeys;
-        return [];
-    }, [project, globalSeriesKeys]);
-
-    const chartIsEmpty = useMemo(() => {
-        return !project && displaySeriesKeys.length === 0;
-    }, [project, displaySeriesKeys.length]);
+    }, [project, projectXAxisDates, projectSeriesByMetric, selectedChartMetrics]);
 
     const chartMaxValue = useMemo(() => {
-        const src = project ? chartData : globalChartData;
+        const src = project ? projectMultiChartData : globalChartData;
         let max = 0;
         src.forEach((row) => {
             Object.entries(row || {}).forEach(([k, v]) => {
@@ -555,7 +468,7 @@ const Analytics = () => {
             });
         });
         return max;
-    }, [project, chartData, globalChartData]);
+    }, [project, projectMultiChartData, globalChartData]);
 
     const showModal = (data, type = 'subscribers') => {
         setSelectedDetail(data);
@@ -576,9 +489,7 @@ const Analytics = () => {
         { title: 'Total Ad Spend', value: `PKR ${(stats?.totalSpend ?? stats?.adSpend ?? 0).toLocaleString()}` },
     ];
 
-    // we always render both Google and Meta cards, even if their values are
-    // zero; the sanitizer already clears out duplicates so the UI won’t show
-    // twice the same numbers, but zero‑value platforms should still appear.
+    // we always render both Google and Meta cards, even if their values are zero
     const displayedPlatforms = useMemo(() => {
         if (!platformSummary) return [];
         return Object.entries(platformSummary);
@@ -792,7 +703,6 @@ const Analytics = () => {
                     {/* Chart Section */}
                     <Card
                         variant="borderless"
-                        
                         style={{ borderRadius: '20px', marginBottom: '32px', boxShadow: '0 4px 20px -5px rgba(0, 0, 0, 0.05)', background: '#fff' }}
                         styles={{ body: { padding: 'clamp(16px, 3vw, 32px)' } }}
                         title={
@@ -800,13 +710,19 @@ const Analytics = () => {
                                 <Text strong style={{ color: '#084b8a', fontSize: '15px' }}>
                                     {project ? 'Project Analytics Trend' : 'Platform Analytics'}
                                 </Text>
-                                <Space>
+                                <Space wrap>
                                     <Select
-                                        value={selectedChartMetric}
-                                        onChange={setSelectedChartMetric}
-                                        style={{ width: 190 }}
+                                        mode="multiple"
+                                        value={selectedChartMetrics}
+                                        onChange={(vals) => {
+                                            if (vals && vals.length > 0) setSelectedChartMetrics(vals);
+                                        }}
+                                        style={{ minWidth: 220, maxWidth: 420 }}
                                         options={CHART_METRICS}
                                         size="middle"
+                                        maxTagCount="responsive"
+                                        placeholder="Select KPIs..."
+                                        allowClear={false}
                                     />
                                     {!project && (
                                         <Select
@@ -823,8 +739,12 @@ const Analytics = () => {
                     >
                         <div style={{ height: '380px', width: '100%' }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={project ? chartData : globalChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <AreaChart
+                                    data={project ? projectMultiChartData : globalChartData}
+                                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                                >
                                     <defs>
+                                        {/* Platform gradients (global view) */}
                                         <linearGradient id="colorGoogle" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%" stopColor="#084b8a" stopOpacity={0.4} />
                                             <stop offset="95%" stopColor="#084b8a" stopOpacity={0.02} />
@@ -836,6 +756,31 @@ const Analytics = () => {
                                         <linearGradient id="colorOther" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.4} />
                                             <stop offset="95%" stopColor="#94a3b8" stopOpacity={0.02} />
+                                        </linearGradient>
+                                        {/* Per-metric gradients (project view) */}
+                                        <linearGradient id="gradVisits" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.35} />
+                                            <stop offset="95%" stopColor="#10b981" stopOpacity={0.02} />
+                                        </linearGradient>
+                                        <linearGradient id="gradClicks" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#084b8a" stopOpacity={0.35} />
+                                            <stop offset="95%" stopColor="#084b8a" stopOpacity={0.02} />
+                                        </linearGradient>
+                                        <linearGradient id="gradSubscribers" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.35} />
+                                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0.02} />
+                                        </linearGradient>
+                                        <linearGradient id="gradUnsubscribers" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.35} />
+                                            <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02} />
+                                        </linearGradient>
+                                        <linearGradient id="gradConvRate" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.35} />
+                                            <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.02} />
+                                        </linearGradient>
+                                        <linearGradient id="gradSpend" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.35} />
+                                            <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0.02} />
                                         </linearGradient>
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -851,67 +796,42 @@ const Analytics = () => {
                                         axisLine={false}
                                         tickLine={false}
                                         tick={{ fill: '#94a3b8', fontSize: 11 }}
-                                        allowDecimals={selectedChartMetric === 'conversionRate' || selectedChartMetric === 'totalSpend'}
+                                        allowDecimals={selectedChartMetrics.some(m => m === 'conversionRate' || m === 'totalSpend')}
                                         domain={[0, chartMaxValue > 0 ? Math.ceil(chartMaxValue * 1.1) : 1]}
                                         tickFormatter={(value) => {
-                                            if (selectedChartMetric === 'totalSpend') return `PKR ${Number(value || 0).toFixed(0)}`;
-                                            if (selectedChartMetric === 'conversionRate') return `${Number(value || 0).toFixed(0)}%`;
+                                            const activeMetric = selectedChartMetrics[0] || 'clicks';
+                                            if (activeMetric === 'totalSpend') return `PKR ${Number(value || 0).toFixed(0)}`;
+                                            if (activeMetric === 'conversionRate') return `${Number(value || 0).toFixed(0)}%`;
                                             return Number(value || 0).toLocaleString();
                                         }}
                                     />
                                     <Tooltip
                                         contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', padding: '12px' }}
                                         labelStyle={{ fontWeight: 800, color: '#084b8a', marginBottom: '4px' }}
-                                        formatter={(value) => [formatMetricValue(selectedChartMetric, value), getMetricLabel(selectedChartMetric)]}
+                                        formatter={(value, name) => {
+                                            return [formatMetricValue(name, value), getMetricLabel(name)];
+                                        }}
                                     />
                                     <Legend verticalAlign="top" height={36} iconType="circle" />
-                                    {project && (
-                                        <Area
-                                            type="linear"
-                                            dataKey="value"
-                                            name={getMetricLabel(selectedChartMetric)}
-                                            stroke="#084b8a"
-                                            strokeWidth={3}
-                                            fillOpacity={1}
-                                            fill="url(#colorGoogle)"
-                                            dot={{ r: 4, fill: '#084b8a', strokeWidth: 2, stroke: '#fff' }}
-                                            activeDot={{ r: 6, strokeWidth: 0 }}
-                                            animationDuration={1500}
-                                        />
-                                    )}
-                                    {!project && chartIsEmpty && (
-                                        <Area
-                                            type="linear"
-                                            dataKey="__empty__"
-                                            stroke="#cbd5e1"
-                                            fillOpacity={0}
-                                            isAnimationActive={false}
-                                        />
-                                    )}
-                                    {!project && displaySeriesKeys.map((key) => {
-                                        const normalized = key === 'all_projects'
-                                            ? 'google'
-                                            : (['google', 'meta'].includes(key) ? key : 'other');
-                                        const color = PLATFORM_COLORS[normalized];
-                                        const label =
-                                            key === 'google' ? 'Google Ads'
-                                                : key === 'meta' ? 'Meta Ads'
-                                                    : key === 'all_projects' ? 'All Projects'
-                                                    : key.charAt(0).toUpperCase() + key.slice(1);
+
+                                    {/* ── All views (Global & Project): one Area per selected metric ── */}
+                                    {selectedChartMetrics.map((metric) => {
+                                        const color = METRIC_COLORS[metric] || '#084b8a';
+                                        const gradId = METRIC_GRADIENT_IDS[metric] || 'gradClicks';
                                         return (
                                             <Area
-                                                key={key}
-                                                type="linear"
-                                                dataKey={key}
-                                                name={label}
+                                                key={metric}
+                                                type="monotone"
+                                                dataKey={metric}
+                                                name={getMetricLabel(metric)}
                                                 stroke={color}
-                                                strokeWidth={3}
+                                                strokeWidth={2.5}
                                                 fillOpacity={1}
-                                                fill={`url(#color${normalized.charAt(0).toUpperCase() + normalized.slice(1)})`}
-                                                dot={{ r: 4, fill: color, strokeWidth: 2, stroke: '#fff' }}
+                                                fill={`url(#${gradId})`}
+                                                dot={{ r: 3, fill: color, strokeWidth: 2, stroke: '#fff' }}
                                                 activeDot={{ r: 5, strokeWidth: 0 }}
                                                 connectNulls
-                                                animationDuration={chartIsEmpty ? 0 : 1500}
+                                                animationDuration={1200}
                                             />
                                         );
                                     })}
