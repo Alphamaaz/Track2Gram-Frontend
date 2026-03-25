@@ -31,7 +31,9 @@ const ProjectConfiguration = () => {
         landingPageSource: 'internal',
         customHtml: null,
         landingPageTemplateId: '',
-        adPlatforms: ['google']
+        adPlatforms: ['google'],
+        pageTitle: '',
+        customDomain: ''
     });
 
     useEffect(() => {
@@ -279,6 +281,20 @@ const ProjectConfiguration = () => {
                                         No templates found. Go to Landing Page Builder to create one first.
                                     </Text>
                                 )}
+                                <div style={{ marginTop: '20px' }}>
+                                    <label style={labelStyle}>
+                                        Injected Page Title
+                                        <Tooltip title="This will be the title shown in the visitor's browser tab.">
+                                            <InfoCircleOutlined style={{ marginLeft: '8px', color: '#8c8c8c' }} />
+                                        </Tooltip>
+                                    </label>
+                                    <Input
+                                        placeholder="e.g. Free Welcome Gift | TrackBridge"
+                                        style={{ height: '44px', borderRadius: '8px' }}
+                                        value={formData.pageTitle}
+                                        onChange={e => setFormData({ ...formData, pageTitle: e.target.value })}
+                                    />
+                                </div>
                             </div>
                         ) : (
                             <div>
@@ -293,6 +309,66 @@ const ProjectConfiguration = () => {
                                 </Text>
                             </div>
                         )}
+
+                        <Divider style={{ margin: '24px 0' }} />
+
+                        <div>
+                            <label style={labelStyle}>Domain Settings</label>
+                            <Radio.Group
+                                value={formData.customDomain?.endsWith('.track2gram.com') ? 'subdomain' : (formData.customDomain ? 'custom' : 'subdomain')}
+                                onChange={e => {
+                                    if (e.target.value === 'subdomain' && !formData.customDomain?.endsWith('.track2gram.com')) {
+                                        setFormData({ ...formData, customDomain: '' });
+                                    }
+                                }}
+                                style={{ marginBottom: '16px', display: 'block' }}
+                            >
+                                <Space direction="vertical" style={{ width: '100%' }}>
+                                    <Radio value="subdomain">
+                                        <Text strong>Branded Subdomain</Text>
+                                        <Tag color="green" style={{ marginLeft: '8px' }}>Automatic SSL</Tag>
+                                        <div style={{ paddingLeft: '24px', marginTop: '8px' }}>
+                                            <Input
+                                                placeholder="my-project"
+                                                addonAfter=".track2gram.com"
+                                                style={{ width: '300px' }}
+                                                value={formData.customDomain?.endsWith('.track2gram.com') ? formData.customDomain.replace('.track2gram.com', '') : ''}
+                                                onChange={e => {
+                                                    const val = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+                                                    setFormData({ ...formData, customDomain: val ? `${val}.track2gram.com` : '' });
+                                                }}
+                                                disabled={formData.customDomain && !formData.customDomain.endsWith('.track2gram.com') && formData.customDomain !== ''}
+                                            />
+                                            <div style={{ marginTop: '4px' }}>
+                                                <Text type="secondary" style={{ fontSize: '12px' }}>
+                                                    Instantly live. No DNS setup required.
+                                                </Text>
+                                            </div>
+                                        </div>
+                                    </Radio>
+
+                                    <Divider style={{ margin: '12px 0' }} />
+
+                                    <Radio value="custom">
+                                        <Text strong>External Custom Domain</Text>
+                                        <div style={{ paddingLeft: '24px', marginTop: '8px' }}>
+                                            <Input
+                                                placeholder="e.g. landing.mybrand.com"
+                                                style={{ width: '300px', borderRadius: '8px' }}
+                                                value={formData.customDomain && !formData.customDomain.endsWith('.track2gram.com') ? formData.customDomain : ''}
+                                                onChange={e => setFormData({ ...formData, customDomain: e.target.value.toLowerCase().trim() })}
+                                                disabled={formData.customDomain?.endsWith('.track2gram.com')}
+                                            />
+                                            <div style={{ marginTop: '4px' }}>
+                                                <Text type="secondary" style={{ fontSize: '12px' }}>
+                                                    Requires pointing your A Record to <b>72.62.241.45</b>
+                                                </Text>
+                                            </div>
+                                        </div>
+                                    </Radio>
+                                </Space>
+                            </Radio.Group>
+                        </div>
                     </Card>
 
                     {/* Bottom Actions */}

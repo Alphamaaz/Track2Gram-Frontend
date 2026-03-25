@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Typography, Space, Button, Radio, Input, Breadcrumb, App, Layout, Grid } from 'antd';
+import { Typography, Space, Button, Radio, Input, Breadcrumb, App, Layout, Grid, Modal, Form } from 'antd';
 import {
     CopyOutlined,
     DownloadOutlined,
@@ -35,6 +35,8 @@ const LandingPageEditor = () => {
     const [htmlCode, setHtmlCode] = useState('');
     const [blocks, setBlocks] = useState([]);
     const [savedPages, setSavedPages] = useState([]);
+    const [isSaveModalVisible, setIsSaveModalVisible] = useState(false);
+    const [saveForm] = Form.useForm();
 
 
     const fetchSavedPages = React.useCallback(async () => {
@@ -82,27 +84,40 @@ const LandingPageEditor = () => {
         fetchLandingPage();
     }, [fetchLandingPage]);
 
-    const handleSave = async () => {
+    const handleSave = () => {
+        saveForm.setFieldsValue({
+            name: pageData?.name || 'New Page',
+            pageTitle: pageData?.pageTitle || ''
+        });
+        setIsSaveModalVisible(true);
+    };
+
+    const confirmSave = async (values) => {
         setLoading(true);
+        setIsSaveModalVisible(false);
         try {
             const payload = {
-                name: pageData?.name || 'New Page',
+                name: values.name,
+                pageTitle: values.pageTitle,
                 html: htmlCode,
                 config: { blocks }
             };
 
             let response;
-            if (id) {
+            if (id && id !== 'builder') {
                 response = await landingPageService.updateLandingPage(id, payload);
             } else {
                 response = await landingPageService.createLandingPage(payload);
             }
 
             if (response.success) {
-                message.success('Landing page saved successfully!');
+                message.success(response.message || 'Landing page saved successfully!');
                 fetchSavedPages();
-                if ((!id || id === 'builder') && response.data?._id) {
+                // If it was a COW (copy-on-write) or if it's a new page, navigate to the new ID
+                if ((!id || id === 'builder' || (response.data?._id && String(response.data._id) !== String(id))) && response.data?._id) {
                     navigate(`/landing-pages/builder/${response.data._id}`, { replace: true });
+                } else if (response.data) {
+                    setPageData(response.data);
                 }
             }
         } catch (error) {
@@ -640,6 +655,41 @@ const LandingPageEditor = () => {
                     {activeTab === 'live' && renderLivePreview()}
                 </Content>
             </Layout>
+            <Modal
+                title="Save Landing Page"
+                open={isSaveModalVisible}
+                onOk={() => saveForm.submit()}
+                onCancel={() => setIsSaveModalVisible(false)}
+                confirmLoading={loading}
+                okText="Save"
+                destroyOnClose
+            >
+                <Form
+                    form={saveForm}
+                    layout="vertical"
+                    onFinish={confirmSave}
+                    initialValues={{
+                        name: pageData?.name || 'New Page',
+                        pageTitle: pageData?.pageTitle || ''
+                    }}
+                >
+                    <Form.Item
+                        name="name"
+                        label="Internal Name"
+                        rules={[{ required: true, message: 'Please enter a name for the landing page' }]}
+                        help="Identify this page in your dashboard"
+                    >
+                        <Input placeholder="e.g. Meta Crypto Page V2" />
+                    </Form.Item>
+                    <Form.Item
+                        name="pageTitle"
+                        label="Browser Tab Title"
+                        help="This text will appear in the visitor's browser tab"
+                    >
+                        <Input placeholder="e.g. Welcome to Our Platform" />
+                    </Form.Item>
+                </Form>
+            </Modal>
         </Layout>
     );
 };

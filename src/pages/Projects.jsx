@@ -28,7 +28,8 @@ import {
   EditOutlined,
   LineChartOutlined,
   ArrowUpOutlined,
-  ProjectOutlined
+  ProjectOutlined,
+  CopyOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import projectService from '../services/project';
@@ -179,12 +180,32 @@ const Projects = () => {
       align: 'right',
       render: (_, record) => (
         <Space>
-          <Button
+                    <Button
             type="primary"
             style={{ borderRadius: '6px', fontSize: '12px', height: '32px' }}
-            onClick={() => window.open(`${BASE_DOMAIN}/p/${record.slug}`, '_blank')}
+            onClick={() => {
+              const url = record.customDomain 
+                ? `https://${record.customDomain}` 
+                : `https://api.track2gram.com/p/${record.slug}`;
+              window.open(url, '_blank');
+            }}
           >
             Open
+          </Button>
+          <Button
+            type="default"
+            icon={<CopyOutlined />}
+            style={{ borderRadius: '6px', fontSize: '12px', height: '32px', border: '1px solid #e2e8f0' }}
+            onClick={() => {
+              const url = record.customDomain 
+                ? `https://${record.customDomain}` 
+                : `https://api.track2gram.com/p/${record.slug}`;
+              
+              navigator.clipboard.writeText(url);
+              message.success('URL copied to clipboard');
+            }}
+          >
+            Copy URL
           </Button>
           <Button
             type="default"
