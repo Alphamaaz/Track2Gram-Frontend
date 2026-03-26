@@ -35,6 +35,7 @@ const ProjectConfiguration = () => {
         pageTitle: '',
         customDomain: ''
     });
+    const [domainType, setDomainType] = useState('subdomain');
 
     useEffect(() => {
         const fetchTemplates = async () => {
@@ -55,6 +56,9 @@ const ProjectConfiguration = () => {
                     const response = await projectService.getProject(id);
                     if (response.success) {
                         setFormData(response.data);
+                        if (response.data.customDomain) {
+                            setDomainType(response.data.customDomain.endsWith('.track2gram.com') ? 'subdomain' : 'custom');
+                        }
                     }
                 } catch {
                     message.error('Failed to load project details');
@@ -315,11 +319,10 @@ const ProjectConfiguration = () => {
                         <div>
                             <label style={labelStyle}>Domain Settings</label>
                             <Radio.Group
-                                value={formData.customDomain?.endsWith('.track2gram.com') ? 'subdomain' : (formData.customDomain ? 'custom' : 'subdomain')}
+                                value={domainType}
                                 onChange={e => {
-                                    if (e.target.value === 'subdomain' && !formData.customDomain?.endsWith('.track2gram.com')) {
-                                        setFormData({ ...formData, customDomain: '' });
-                                    }
+                                    setDomainType(e.target.value);
+                                    setFormData({ ...formData, customDomain: '' });
                                 }}
                                 style={{ marginBottom: '16px', display: 'block' }}
                             >
@@ -332,12 +335,12 @@ const ProjectConfiguration = () => {
                                                 placeholder="my-project"
                                                 addonAfter=".track2gram.com"
                                                 style={{ width: '300px' }}
-                                                value={formData.customDomain?.endsWith('.track2gram.com') ? formData.customDomain.replace('.track2gram.com', '') : ''}
+                                                value={domainType === 'subdomain' && formData.customDomain?.endsWith('.track2gram.com') ? formData.customDomain.replace('.track2gram.com', '') : ''}
                                                 onChange={e => {
                                                     const val = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
                                                     setFormData({ ...formData, customDomain: val ? `${val}.track2gram.com` : '' });
                                                 }}
-                                                disabled={formData.customDomain && !formData.customDomain.endsWith('.track2gram.com') && formData.customDomain !== ''}
+                                                disabled={domainType !== 'subdomain'}
                                             />
                                             <div style={{ marginTop: '4px' }}>
                                                 <Text type="secondary" style={{ fontSize: '12px' }}>
@@ -355,9 +358,9 @@ const ProjectConfiguration = () => {
                                             <Input
                                                 placeholder="e.g. landing.mybrand.com"
                                                 style={{ width: '300px', borderRadius: '8px' }}
-                                                value={formData.customDomain && !formData.customDomain.endsWith('.track2gram.com') ? formData.customDomain : ''}
+                                                value={domainType === 'custom' ? formData.customDomain : ''}
                                                 onChange={e => setFormData({ ...formData, customDomain: e.target.value.toLowerCase().trim() })}
-                                                disabled={formData.customDomain?.endsWith('.track2gram.com')}
+                                                disabled={domainType !== 'custom'}
                                             />
                                             <div style={{ marginTop: '4px' }}>
                                                 <Text type="secondary" style={{ fontSize: '12px' }}>
