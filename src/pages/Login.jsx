@@ -30,7 +30,7 @@ export const Login = () => {
       sessionStorage.removeItem('auth_redirect_in_progress')
 
       message.success('Login successful!')
-      navigate('/dashboard')
+      window.location.href = '/dashboard'
     } catch (error) {
       console.error('Login error details:', error)
       const errorMsg = error.message || error.error || (typeof error === 'string' ? error : JSON.stringify(error))

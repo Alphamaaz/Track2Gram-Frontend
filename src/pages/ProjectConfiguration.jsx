@@ -81,10 +81,12 @@ const ProjectConfiguration = () => {
         setLoading(true);
         try {
             let response;
+            const payload = { ...formData, pageTitle: formData.name };
+            
             if (id && id !== 'new') {
-                response = await projectService.updateProject(id, formData);
+                response = await projectService.updateProject(id, payload);
             } else {
-                response = await projectService.createProject(formData);
+                response = await projectService.createProject(payload);
             }
 
             if (response.success) {
@@ -285,21 +287,7 @@ const ProjectConfiguration = () => {
                                         No templates found. Go to Landing Page Builder to create one first.
                                     </Text>
                                 )}
-                                <div style={{ marginTop: '20px' }}>
-                                    <label style={labelStyle}>
-                                        Injected Page Title
-                                        <Tooltip title="This will be the title shown in the visitor's browser tab.">
-                                            <InfoCircleOutlined style={{ marginLeft: '8px', color: '#8c8c8c' }} />
-                                        </Tooltip>
-                                    </label>
-                                    <Input
-                                        placeholder="e.g. Free Welcome Gift | TrackBridge"
-                                        style={{ height: '44px', borderRadius: '8px' }}
-                                        value={formData.pageTitle}
-                                        onChange={e => setFormData({ ...formData, pageTitle: e.target.value })}
-                                    />
                                 </div>
-                            </div>
                         ) : (
                             <div>
                                 <label style={labelStyle}>Destination URL</label>
