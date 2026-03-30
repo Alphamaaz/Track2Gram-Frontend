@@ -741,7 +741,7 @@ const Analytics = () => {
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart
                                     data={project ? projectMultiChartData : globalChartData}
-                                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                                    margin={{ top: 10, right: 10, left: -20, bottom: 25 }}
                                 >
                                     <defs>
                                         {/* Platform gradients (global view) */}
@@ -790,7 +790,7 @@ const Analytics = () => {
                                         tickLine={false}
                                         tick={{ fill: '#94a3b8', fontSize: 11 }}
                                         dy={10}
-                                        interval="preserveStartEnd"
+                                        interval={0}
                                     />
                                     <YAxis
                                         axisLine={false}
@@ -828,8 +828,8 @@ const Analytics = () => {
                                                 strokeWidth={2.5}
                                                 fillOpacity={1}
                                                 fill={`url(#${gradId})`}
-                                                dot={{ r: 3, fill: color, strokeWidth: 2, stroke: '#fff' }}
-                                                activeDot={{ r: 5, strokeWidth: 0 }}
+                                                dot={{ r: 4, fill: color, strokeWidth: 2, stroke: '#fff' }}
+                                                activeDot={{ r: 6, strokeWidth: 0 }}
                                                 connectNulls
                                                 animationDuration={1200}
                                             />
@@ -901,7 +901,7 @@ const Analytics = () => {
                 centered
                 styles={{ content: { borderRadius: '12px', overflow: 'hidden', padding: 0 } }}
             >
-                <div style={{ padding: '0 24px 24px' }}>
+                <div style={{ padding: '0 24px 24px', maxHeight: '400px', overflowY: 'auto' }}>
                     <List
                         dataSource={selectedDetail?.users || []}
                         renderItem={(user) => (

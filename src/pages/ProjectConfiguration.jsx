@@ -33,7 +33,8 @@ const ProjectConfiguration = () => {
         landingPageTemplateId: '',
         adPlatforms: ['google'],
         pageTitle: '',
-        customDomain: ''
+        customDomain: '',
+        externalUrl: ''
     });
     const [domainType, setDomainType] = useState('subdomain');
 
@@ -295,6 +296,8 @@ const ProjectConfiguration = () => {
                                     placeholder="https://your-page.com"
                                     style={{ height: '44px', borderRadius: '8px' }}
                                     autoComplete="url"
+                                    value={formData.externalUrl}
+                                    onChange={e => setFormData({ ...formData, externalUrl: e.target.value })}
                                 />
                                 <Text type="secondary" style={{ fontSize: '12px' }}>
                                     Traffic will be redirected to this URL after tracking.
