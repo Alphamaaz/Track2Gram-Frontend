@@ -14,12 +14,12 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import projectService from '../services/project';
 import landingPageService from '../services/landingPage';
-import { BASE_DOMAIN } from '../config';
+import { BASE_DOMAIN, APP_DOMAIN_SUFFIX } from '../config';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 
-const domainSuffix = '.' + BASE_DOMAIN.replace(/^https?:\/\//, '').replace(/\/$/, '');
+const domainSuffix = APP_DOMAIN_SUFFIX;
 
 const ProjectConfiguration = () => {
     const navigate = useNavigate();
