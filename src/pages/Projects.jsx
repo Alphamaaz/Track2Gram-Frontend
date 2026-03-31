@@ -33,7 +33,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import projectService from '../services/project';
-import { BASE_DOMAIN } from '../config';
+import { BASE_DOMAIN, API_BASE_URL } from '../config';
 
 const { Title, Text } = Typography;
 
@@ -180,13 +180,14 @@ const Projects = () => {
       align: 'right',
       render: (_, record) => (
         <Space>
-                    <Button
+          <Button
             type="primary"
             style={{ borderRadius: '6px', fontSize: '12px', height: '32px' }}
             onClick={() => {
-              const url = record.customDomain 
-                ? `https://${record.customDomain}` 
-                : `https://api.track2gram.com/p/${record.slug}`;
+              const baseUrl = API_BASE_URL.replace(/\/api$/, '');
+              const url = record.customDomain
+                ? `https://${record.customDomain}`
+                : `${baseUrl}/p/${record.slug}`;
               window.open(url, '_blank');
             }}
           >
@@ -197,10 +198,11 @@ const Projects = () => {
             icon={<CopyOutlined />}
             style={{ borderRadius: '6px', fontSize: '12px', height: '32px', border: '1px solid #e2e8f0' }}
             onClick={() => {
-              const url = record.customDomain 
-                ? `https://${record.customDomain}` 
-                : `https://api.track2gram.com/p/${record.slug}`;
-              
+              const baseUrl = API_BASE_URL.replace(/\/api$/, '');
+              const url = record.customDomain
+                ? `https://${record.customDomain}`
+                : `${baseUrl}/p/${record.slug}`;
+
               navigator.clipboard.writeText(url);
               message.success('URL copied to clipboard');
             }}

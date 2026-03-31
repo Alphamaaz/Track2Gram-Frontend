@@ -14,9 +14,12 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import projectService from '../services/project';
 import landingPageService from '../services/landingPage';
+import { BASE_DOMAIN } from '../config';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
+
+const domainSuffix = '.' + BASE_DOMAIN.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
 const ProjectConfiguration = () => {
     const navigate = useNavigate();
@@ -58,7 +61,7 @@ const ProjectConfiguration = () => {
                     if (response.success) {
                         setFormData(response.data);
                         if (response.data.customDomain) {
-                            setDomainType(response.data.customDomain.endsWith('.track2gram.com') ? 'subdomain' : 'custom');
+                            setDomainType(response.data.customDomain.endsWith(domainSuffix) ? 'subdomain' : 'custom');
                         }
                     }
                 } catch {
@@ -324,12 +327,12 @@ const ProjectConfiguration = () => {
                                         <div style={{ paddingLeft: '24px', marginTop: '8px' }}>
                                             <Input
                                                 placeholder="my-project"
-                                                addonAfter=".track2gram.com"
+                                                addonAfter={domainSuffix}
                                                 style={{ width: '300px' }}
-                                                value={domainType === 'subdomain' && formData.customDomain?.endsWith('.track2gram.com') ? formData.customDomain.replace('.track2gram.com', '') : ''}
+                                                value={domainType === 'subdomain' && formData.customDomain?.endsWith(domainSuffix) ? formData.customDomain.replace(domainSuffix, '') : ''}
                                                 onChange={e => {
                                                     const val = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
-                                                    setFormData({ ...formData, customDomain: val ? `${val}.track2gram.com` : '' });
+                                                    setFormData({ ...formData, customDomain: val ? `${val}${domainSuffix}` : '' });
                                                 }}
                                                 disabled={domainType !== 'subdomain'}
                                             />
