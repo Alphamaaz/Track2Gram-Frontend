@@ -13,12 +13,14 @@ import MetaAdsIntegration from './pages/MetaAdsIntegration'
 import GoogleAdsIntegration from './pages/GoogleAdsIntegration'
 import TelegramIntegration from './pages/TelegramIntegration'
 import LeadManagement from './pages/LeadManagement'
+import RetentionCampaigns from './pages/RetentionCampaigns'
 import Analytics from './pages/Analytics'
 import RoleManagement from './pages/RoleManagement'
 import Buyer from './pages/Buyer'
 import Support from './pages/Support'
 import EmailVerification from './pages/EmailVerification'
 import AcceptInvite from './pages/AcceptInvite'
+import Billing from './pages/Billing'
 import GoogleAdsAuthorize from './pages/GoogleAdsAuthorize'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import TermsOfService from './pages/TermsOfService'
@@ -63,8 +65,8 @@ function App() {
             headerBg: '#084b8a',
             headerColor: '#ffffff',
             headerBorderRadius: 10,
-          }
-        }
+          },
+        },
       }}
     >
       <AntApp>
@@ -89,79 +91,79 @@ function App() {
               path="/*"
               element={
                 isAuthenticated ? (
-                <Layout style={{ minHeight: '100vh' }}>
-                  <Header
-                    collapsed={collapsed}
-                    onToggle={() => setCollapsed(!collapsed)}
-                  />
-                  <Layout style={{ marginTop: 64 }}>
-                    <Sidebar
+                  <Layout style={{ minHeight: '100vh' }}>
+                    <Header
                       collapsed={collapsed}
-                      setCollapsed={setCollapsed}
+                      onToggle={() => setCollapsed(!collapsed)}
                     />
-                    <Content
-                      style={{
-                        padding: 'clamp(16px, 4vw, 32px)',
-                        background: '#f8fafc',
-                        minHeight: 280,
-                        transition: 'all 0.2s cubic-bezier(0.2, 0, 0, 1)',
-                      }}
-                      className="main-content-area"
-                    >
-                      <div style={{ maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
-                        <Routes>
-                          <Route path="dashboard" element={<Dashboard />} />
+                    <Layout style={{ marginTop: 64 }}>
+                      <Sidebar
+                        collapsed={collapsed}
+                        setCollapsed={setCollapsed}
+                      />
+                      <Content
+                        style={{
+                          padding: 'clamp(16px, 4vw, 32px)',
+                          background: '#f8fafc',
+                          minHeight: 280,
+                          transition: 'all 0.2s cubic-bezier(0.2, 0, 0, 1)',
+                        }}
+                        className="main-content-area"
+                      >
+                        <div style={{ maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
+                          <Routes>
+                            <Route path="dashboard" element={<Dashboard />} />
+                            <Route path="projects" element={<Projects />} />
+                            <Route path="projects/new" element={<ProjectConfiguration />} />
+                            <Route path="projects/edit/:id" element={<ProjectConfiguration />} />
+                            <Route path="landing-pages" element={<Navigate to="/landing-pages/builder" replace />} />
+                            <Route path="landing-pages/builder" element={<LandingPageEditor />} />
+                            <Route path="landing-pages/builder/:id" element={<LandingPageEditor />} />
+                            <Route path="integrations/meta-ads" element={<MetaAdsIntegration />} />
+                            <Route path="integrations/google-ads" element={<GoogleAdsIntegration />} />
+                            <Route path="integrations/telegram" element={<TelegramIntegration />} />
+                            <Route path="lead-management" element={<LeadManagement />} />
+                            <Route path="analytics" element={<Analytics />} />
+                            <Route path="retention" element={<RetentionCampaigns />} />
+                            <Route path="role-management" element={<RoleManagement />} />
+                            <Route path="buyers" element={<Buyer />} />
+                            <Route path="billing" element={<Billing />} />
+                            <Route path="support" element={<Support />} />
+                          </Routes>
+                        </div>
+                      </Content>
+                    </Layout>
 
-                          <Route path="projects" element={<Projects />} />
-                          <Route path="projects/new" element={<ProjectConfiguration />} />
-                          <Route path="projects/edit/:id" element={<ProjectConfiguration />} />
-                          <Route path="landing-pages" element={<Navigate to="/landing-pages/builder" replace />} />
-                          <Route path="landing-pages/builder" element={<LandingPageEditor />} />
-                          <Route path="landing-pages/builder/:id" element={<LandingPageEditor />} />
-                          <Route path="integrations/meta-ads" element={<MetaAdsIntegration />} />
-                          <Route path="integrations/google-ads" element={<GoogleAdsIntegration />} />
-                          <Route path="integrations/telegram" element={<TelegramIntegration />} />
-                          <Route path="lead-management" element={<LeadManagement />} />
-                          <Route path="analytics" element={<Analytics />} />
-
-                          <Route path="role-management" element={<RoleManagement />} />
-                          <Route path="buyers" element={<Buyer />} />
-                          <Route path="support" element={<Support />} />
-                        </Routes>
-                      </div>
-                    </Content>
+                    <style>
+                      {`
+                        @media (max-width: 991px) {
+                          .main-content-area {
+                            padding: 12px 12px !important;
+                            margin-left: 0 !important;
+                          }
+                          .ant-layout-sider {
+                            position: fixed !important;
+                            height: 100vh !important;
+                            z-index: 1003 !important;
+                            left: ${collapsed ? '-260px' : '0'} !important;
+                            transition: left 0.3s ease !important;
+                            box-shadow: ${collapsed ? 'none' : '4px 0 10px rgba(0,0,0,0.1)'} !important;
+                          }
+                          .mobile-overlay {
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            right: 0;
+                            bottom: 0;
+                            background: rgba(0,0,0,0.4);
+                            z-index: 1002;
+                            display: ${collapsed ? 'none' : 'block'};
+                          }
+                        }
+                      `}
+                    </style>
+                    {!collapsed && <div className="mobile-overlay" onClick={() => setCollapsed(true)} />}
                   </Layout>
-
-                  <style>
-                    {`
-                      @media (max-width: 991px) {
-                        .main-content-area {
-                          padding: 12px 12px !important;
-                          margin-left: 0 !important;
-                        }
-                        .ant-layout-sider {
-                          position: fixed !important;
-                          height: 100vh !important;
-                          z-index: 1003 !important;
-                          left: ${collapsed ? '-260px' : '0'} !important;
-                          transition: left 0.3s ease !important;
-                          box-shadow: ${collapsed ? 'none' : '4px 0 10px rgba(0,0,0,0.1)'} !important;
-                        }
-                        .mobile-overlay {
-                          position: fixed;
-                          top: 0;
-                          left: 0;
-                          right: 0;
-                          bottom: 0;
-                          background: rgba(0,0,0,0.4);
-                          z-index: 1002;
-                          display: ${collapsed ? 'none' : 'block'};
-                        }
-                      }
-                    `}
-                  </style>
-                  {!collapsed && <div className="mobile-overlay" onClick={() => setCollapsed(true)} />}
-                </Layout>
                 ) : (
                   <Navigate to="/login" replace />
                 )

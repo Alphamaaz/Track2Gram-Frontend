@@ -7,29 +7,51 @@ import {
   LinkOutlined,
   TeamOutlined,
   BarChartOutlined,
-  SettingOutlined,
   LogoutOutlined,
   CustomerServiceOutlined,
   HistoryOutlined,
-  DollarOutlined
+  MessageOutlined,
+  CreditCardOutlined,
+  TrophyOutlined
 } from '@ant-design/icons'
+import { API_BASE_URL } from '../config'
+import { useState, useEffect } from 'react'
 
 const { Sider } = Layout
 
 const Sidebar = ({ collapsed, setCollapsed }) => {
   const location = useLocation()
   const navigate = useNavigate()
+  const [subscription, setSubscription] = useState(null)
 
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const userRole = (user.role || '').toLowerCase();
-  const isAdminOrOwner = userRole === 'admin' || userRole === 'owner';
+  const fetchSubscription = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`${API_BASE_URL}/settings/subscription/status`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) {
+        setSubscription(await res.json())
+      }
+    } catch {
+      console.warn('Failed to load subscription status')
+    }
+  }
+
+  useEffect(() => {
+    fetchSubscription()
+  }, [])
+
+  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const userRole = (user.role || '').toLowerCase()
+  const isAdminOrOwner = userRole === 'admin' || userRole === 'owner'
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    sessionStorage.removeItem('auth_redirect_in_progress');
-    navigate('/login', { replace: true });
-  };
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    sessionStorage.removeItem('auth_redirect_in_progress')
+    navigate('/login', { replace: true })
+  }
 
   const menuItems = [
     {
@@ -64,7 +86,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
           key: '/integrations/telegram',
           label: <Link to="/integrations/telegram">Telegram</Link>,
         },
-      ]
+      ],
     },
     {
       key: '/lead-management',
@@ -81,7 +103,16 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
       icon: <BarChartOutlined />,
       label: <Link to="/analytics">Analytics</Link>,
     },
-
+    // {
+    //   key: '/retention',
+    //   icon: <MessageOutlined />,
+    //   label: <Link to="/retention">Retention</Link>,
+    // },
+    {
+      key: '/billing',
+      icon: <CreditCardOutlined />,
+      label: <Link to="/billing">Subscription</Link>,
+    },
     isAdminOrOwner && {
       key: '/role-management',
       icon: <TeamOutlined />,
@@ -92,7 +123,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
       icon: <CustomerServiceOutlined />,
       label: <Link to="/support">Support</Link>,
     },
-  ].filter(Boolean);
+  ].filter(Boolean)
 
   return (
     <Sider
@@ -117,7 +148,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
         backgroundColor: '#084b8a',
         zIndex: 1002,
         boxShadow: '4px 0 24px rgba(0,0,0,0.05)',
-        paddingBottom: '40px'
+        paddingBottom: '40px',
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -130,28 +161,55 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
             flex: 1,
             borderRight: 0,
             backgroundColor: 'transparent',
-            paddingTop: '16px'
+            paddingTop: '16px',
           }}
-          items={menuItems.map(item => ({
+          items={menuItems.map((item) => ({
             ...item,
             style: {
-              color: '#cbd5e1', // Slate-300 for soft contrast
+              color: '#cbd5e1',
               marginBottom: '4px',
               borderRadius: '8px',
               marginInline: '12px',
               width: 'calc(100% - 24px)',
             },
-            ...(item.children ? {
-              children: item.children.map(child => ({
-                ...child,
-                style: {
-                  color: '#cbd5e1',
-                  borderRadius: '8px',
-                }
-              }))
-            } : {})
+            ...(item.children
+              ? {
+                children: item.children.map((child) => ({
+                  ...child,
+                  style: {
+                    color: '#cbd5e1',
+                    borderRadius: '8px',
+                  },
+                })),
+              }
+              : {}),
           }))}
         />
+
+        {subscription?.isTrialing && (
+          <div style={{
+            margin: '8px 16px',
+            padding: collapsed ? '12px 0' : '16px',
+            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+            borderRadius: '12px',
+            textAlign: 'center',
+            border: '1px dashed rgba(255, 255, 255, 0.3)'
+          }}>
+            {collapsed ? (
+              <TrophyOutlined style={{ color: '#fbbf24', fontSize: '20px' }} />
+            ) : (
+              <>
+                <div style={{ color: '#fbbf24', fontWeight: 700, fontSize: '12px', marginBottom: '4px' }}>
+                  <TrophyOutlined style={{ marginRight: 6 }} />
+                  FREE TRIAL
+                </div>
+                <div style={{ color: '#fff', fontSize: '11px' }}>
+                  {subscription.trialDaysRemaining} days remaining
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         <div style={{ padding: '24px 16px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
           <Menu
@@ -168,8 +226,8 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
                   borderRadius: '8px',
                   marginInline: '12px',
                   width: 'calc(100% - 24px)',
-                }
-              }
+                },
+              },
             ]}
           />
         </div>
