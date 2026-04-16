@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Typography, Button, Tag, Space, Radio, Divider, message, Alert, Spin, Statistic } from 'antd';
 import { InfoCircleOutlined, ThunderboltOutlined, RocketOutlined, CheckCircleFilled, TrophyOutlined } from '@ant-design/icons';
 import { API_BASE_URL } from '../config';
+import { getApiHeaders } from '../utils/apiHeaders';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -13,48 +14,126 @@ const Billing = () => {
   const [upgrading, setUpgrading] = useState(false);
 
   const token = localStorage.getItem('token');
-  const headers = {
+  const headers = getApiHeaders({
     'Content-Type': 'application/json',
     Authorization: `Bearer ${token}`,
-  };
+  }, API_BASE_URL);
 
   useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [pricingRes, statusRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/settings/subscription/pricing`, { headers }),
+          fetch(`${API_BASE_URL}/settings/subscription/status`, { headers })
+        ]);
+
+        const pricingData = await pricingRes.json();
+        const statusData = await statusRes.json();
+
+        setPricing(pricingData);
+        setStatus(statusData);
+        if (statusData.activeTool && statusData.activeTool !== 'both') {
+          setSelectedTool(statusData.activeTool);
+        }
+      } catch {
+        message.error('Failed to load subscription data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const checkPaymentResult = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const basketId = urlParams.get('basket_id');
+      const success = urlParams.get('success');
+
+      if (basketId && success === 'true') {
+        const hideLoading = message.loading('Verifying payment...', 0);
+        try {
+          const res = await fetch(`${API_BASE_URL}/payments/verify/${basketId}`, { headers });
+          const data = await res.json();
+          if (data.success && (data.payfast?.status === 'success' || data.payfast?.status === '00')) {
+            message.success('Payment verified! Your plan is now active.', 5);
+            fetchData(); // Refresh status
+          } else {
+            message.error('Payment verification failed or still processing.');
+          }
+        } catch {
+          message.warning('Could not verify payment automatically.');
+        } finally {
+          hideLoading();
+        }
+      }
+    };
+
     fetchData();
+    checkPaymentResult();
   }, []);
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const [pricingRes, statusRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/settings/subscription/pricing`, { headers }),
-        fetch(`${API_BASE_URL}/settings/subscription/status`, { headers })
-      ]);
-
-      const pricingData = await pricingRes.json();
-      const statusData = await statusRes.json();
-
-      setPricing(pricingData);
-      setStatus(statusData);
-      if (statusData.activeTool && statusData.activeTool !== 'both') {
-        setSelectedTool(statusData.activeTool);
-      }
-    } catch (err) {
-      message.error('Failed to load subscription data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSelectPlan = async (planType) => {
-    // Note: In a real production app, this would redirect to PayFast checkout.
-    // For now, we'll simulate the "Upgrade intent" or handle the selection.
-    message.info(`Redirecting to PayFast for ${planType.toUpperCase()} plan...`);
-    // Example: window.location.href = `https://gopayfast.com/checkout?amount=${pricing[planType]}&...`;
+    setUpgrading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/payments/initiate`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          planType,
+          activeTool: planType === 'starter' ? selectedTool : 'both'
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || data.payfast?.message || data.message || 'Payment initiation failed');
+      }
+
+      if (data.paymentFlow === 'sandbox_api' || data.payfast?.sandboxAutoProcessed) {
+        if (data.success) {
+          message.success(`Sandbox payment successful. Order ID: ${data.payfast?.basket_id || data.basketId}`, 6);
+          window.history.replaceState({}, '', '/billing');
+          const [pricingRes, statusRes] = await Promise.all([
+            fetch(`${API_BASE_URL}/settings/subscription/pricing`, { headers }),
+            fetch(`${API_BASE_URL}/settings/subscription/status`, { headers })
+          ]);
+          setPricing(await pricingRes.json());
+          setStatus(await statusRes.json());
+        } else {
+          throw new Error(data.payfast?.message || 'Sandbox payment failed');
+        }
+        return;
+      }
+
+      // APPS PayFast Legacy Redirection: Submit hidden form
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = data.payfast.checkout_url;
+
+      // Add ALL parameters returned by backend as hidden inputs
+      Object.entries(data.payfast).forEach(([key, value]) => {
+        if (key !== 'checkout_url') {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = key;
+          input.value = value;
+          form.appendChild(input);
+        }
+      });
+
+      document.body.appendChild(form);
+      form.submit();
+
+    } catch (err) {
+      console.error('Payment Select Error:', err);
+      message.error(err.message || 'Failed to start payment process');
+    } finally {
+      setUpgrading(false);
+    }
   };
 
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 100 }}><Spin size="large" /></div>;
 
-  const isActive = status?.subscriptionStatus === 'active';
   const isStarter = status?.planType === 'starter';
   const isPro = status?.planType === 'pro';
 
@@ -94,8 +173,8 @@ const Billing = () => {
           <Card
             hoverable
             className={isStarter ? 'active-plan-card' : ''}
-            style={{ 
-              borderRadius: 20, 
+            style={{
+              borderRadius: 20,
               border: isStarter ? '2px solid #084b8a' : '1px solid #f1f5f9',
               height: '100%'
             }}
@@ -111,7 +190,7 @@ const Billing = () => {
             </div>
 
             <Divider />
-            
+
             <Space direction="vertical" size="middle" style={{ width: '100%', marginBottom: 32 }}>
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <CheckCircleFilled style={{ color: '#10b981', marginRight: 10 }} />
@@ -128,8 +207,8 @@ const Billing = () => {
             </Space>
 
             <Divider orientation="left">Select Feature</Divider>
-            <Radio.Group 
-              value={selectedTool} 
+            <Radio.Group
+              value={selectedTool}
               onChange={(e) => setSelectedTool(e.target.value)}
               disabled={isStarter && !status?.isTrialing}
               style={{ width: '100%', marginBottom: 32 }}
@@ -140,12 +219,13 @@ const Billing = () => {
               </Space>
             </Radio.Group>
 
-            <Button 
-              type={isStarter ? "default" : "primary"} 
-              block 
-              size="large" 
+            <Button
+              type={isStarter ? "default" : "primary"}
+              block
+              size="large"
               style={{ borderRadius: 12, height: 48, fontWeight: 700 }}
               disabled={isStarter && !status?.isTrialing}
+              loading={upgrading}
               onClick={() => handleSelectPlan('starter')}
             >
               {isStarter ? "Current Plan" : "Get Starter"}
@@ -158,8 +238,8 @@ const Billing = () => {
           <Card
             hoverable
             className={isPro ? 'active-plan-card' : ''}
-            style={{ 
-              borderRadius: 20, 
+            style={{
+              borderRadius: 20,
               border: isPro ? '2px solid #084b8a' : '1px solid #f1f5f9',
               height: '100%',
               backgroundColor: '#f8fafc'
@@ -179,7 +259,7 @@ const Billing = () => {
             </div>
 
             <Divider />
-            
+
             <Space direction="vertical" size="middle" style={{ width: '100%', marginBottom: 32 }}>
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <CheckCircleFilled style={{ color: '#10b981', marginRight: 10 }} />
@@ -201,12 +281,13 @@ const Billing = () => {
 
             <div style={{ height: 62 }}></div> {/* Spacer to match Radio height */}
 
-            <Button 
-              type={isPro ? "default" : "primary"} 
-              block 
-              size="large" 
+            <Button
+              type={isPro ? "default" : "primary"}
+              block
+              size="large"
               style={{ borderRadius: 12, height: 48, fontWeight: 700, backgroundColor: isPro ? undefined : '#084b8a' }}
               disabled={isPro && !status?.isTrialing}
+              loading={upgrading}
               onClick={() => handleSelectPlan('pro')}
             >
               {isPro ? "Current Plan" : "Upgrade to Pro"}

@@ -1,5 +1,6 @@
 import { API_BASE_URL } from '../config';
 import { handleAuthExpiry } from './session';
+import { getApiHeaders } from '../utils/apiHeaders';
 
 /**
  * Common request handler to handle fetch responses and errors
@@ -13,9 +14,10 @@ const request = async (endpoint, options = {}) => {
         ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         ...options.headers,
     };
+    const finalHeaders = getApiHeaders(headers, url);
 
     try {
-        const response = await fetch(url, { ...options, headers });
+        const response = await fetch(url, { ...options, headers: finalHeaders });
         const data = await response.json();
 
         if (!response.ok) {

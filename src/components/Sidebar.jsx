@@ -16,6 +16,7 @@ import {
 } from '@ant-design/icons'
 import { API_BASE_URL } from '../config'
 import { useState, useEffect } from 'react'
+import { getApiHeaders } from '../utils/apiHeaders'
 
 const { Sider } = Layout
 
@@ -28,7 +29,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
     try {
       const token = localStorage.getItem('token')
       const res = await fetch(`${API_BASE_URL}/settings/subscription/status`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: getApiHeaders({ Authorization: `Bearer ${token}` }, `${API_BASE_URL}/settings/subscription/status`)
       })
       if (res.ok) {
         setSubscription(await res.json())

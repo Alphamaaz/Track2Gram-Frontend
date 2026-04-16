@@ -11,6 +11,7 @@ import {
   ThunderboltOutlined, RollbackOutlined, WarningOutlined, LinkOutlined
 } from '@ant-design/icons'
 import { API_BASE_URL } from '../config'
+import { getApiHeaders } from '../utils/apiHeaders'
 
 const { Title, Text, Paragraph } = Typography
 const { TextArea } = Input
@@ -24,9 +25,10 @@ const authHeaders = () => ({
 })
 
 async function apiFetch(path, options = {}) {
+  const url = `${API_BASE_URL}/retention${path}`
   const res = await fetch(`${API_BASE_URL}/retention${path}`, {
     ...options,
-    headers: { ...authHeaders(), ...options.headers },
+    headers: getApiHeaders({ ...authHeaders(), ...options.headers }, url),
   })
   const data = await res.json()
   if (!res.ok) throw new Error(data.message || 'Request failed')
