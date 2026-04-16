@@ -1,309 +1,589 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Typography, Button, Tag, Space, Radio, Divider, message, Alert, Spin, Statistic } from 'antd';
-import { InfoCircleOutlined, ThunderboltOutlined, RocketOutlined, CheckCircleFilled, TrophyOutlined } from '@ant-design/icons';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  App,
+  Button,
+  Card,
+  Col,
+  Divider,
+  Modal,
+  Radio,
+  Row,
+  Skeleton,
+  Space,
+  Spin,
+  Tag,
+  Typography,
+} from 'antd';
+import {
+  CheckCircleFilled,
+  CreditCardOutlined,
+  InfoCircleOutlined,
+  ThunderboltOutlined,
+  TrophyOutlined,
+  WalletOutlined,
+} from '@ant-design/icons';
 import { API_BASE_URL } from '../config';
 import { getApiHeaders } from '../utils/apiHeaders';
 
 const { Title, Text, Paragraph } = Typography;
 
+const PLAN_FEATURES = {
+  starter: [
+    'Single platform tracking',
+    'Direct invite link flow',
+    'Core analytics and attribution',
+    'Email support',
+  ],
+  pro: [
+    'Google + Meta tracking',
+    'Advanced retention bot access',
+    'Lead scoring and management',
+    'Priority support',
+  ],
+};
+
+const toolOptions = [
+  { value: 'google_tracker', label: 'Google Tracker' },
+  { value: 'meta_tracker', label: 'Meta Tracker' },
+];
+
+const VALID_STARTER_TOOLS = new Set(toolOptions.map((option) => option.value));
+
+const formatPkr = (value) => `PKR ${Number(value || 0).toLocaleString()}`;
+
 const Billing = () => {
+  const { message } = App.useApp();
   const [loading, setLoading] = useState(true);
   const [pricing, setPricing] = useState({ starter: 0, pro: 0 });
   const [status, setStatus] = useState(null);
-  const [selectedTool, setSelectedTool] = useState('google_tracker');
-  const [upgrading, setUpgrading] = useState(false);
+  const [selectedTool, setSelectedTool] = useState('');
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [pendingPlanType, setPendingPlanType] = useState(null);
+  const [starterToolError, setStarterToolError] = useState('');
 
   const token = localStorage.getItem('token');
-  const headers = getApiHeaders({
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${token}`,
-  }, API_BASE_URL);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const [pricingRes, statusRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/settings/subscription/pricing`, { headers }),
-          fetch(`${API_BASE_URL}/settings/subscription/status`, { headers })
-        ]);
+  const buildHeaders = useCallback((contentType = 'application/json') => {
+    const baseHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+    if (contentType) baseHeaders['Content-Type'] = contentType;
+    return getApiHeaders(baseHeaders, API_BASE_URL);
+  }, [token]);
 
-        const pricingData = await pricingRes.json();
-        const statusData = await statusRes.json();
-
-        setPricing(pricingData);
-        setStatus(statusData);
-        if (statusData.activeTool && statusData.activeTool !== 'both') {
-          setSelectedTool(statusData.activeTool);
-        }
-      } catch {
-        message.error('Failed to load subscription data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const checkPaymentResult = async () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const basketId = urlParams.get('basket_id');
-      const success = urlParams.get('success');
-
-      if (basketId && success === 'true') {
-        const hideLoading = message.loading('Verifying payment...', 0);
-        try {
-          const res = await fetch(`${API_BASE_URL}/payments/verify/${basketId}`, { headers });
-          const data = await res.json();
-          if (data.success && (data.payfast?.status === 'success' || data.payfast?.status === '00')) {
-            message.success('Payment verified! Your plan is now active.', 5);
-            fetchData(); // Refresh status
-          } else {
-            message.error('Payment verification failed or still processing.');
-          }
-        } catch {
-          message.warning('Could not verify payment automatically.');
-        } finally {
-          hideLoading();
-        }
-      }
-    };
-
-    fetchData();
-    checkPaymentResult();
+  const clearBillingQuery = useCallback(() => {
+    const nextUrl = `${window.location.origin}${window.location.pathname}`;
+    window.history.replaceState({}, '', nextUrl);
   }, []);
 
-  const handleSelectPlan = async (planType) => {
-    setUpgrading(true);
+  const fetchBillingData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [pricingRes, statusRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/settings/subscription/pricing`, { headers: buildHeaders(null) }),
+        fetch(`${API_BASE_URL}/settings/subscription/status`, { headers: buildHeaders(null) }),
+      ]);
+
+      const pricingData = await pricingRes.json();
+      const statusData = await statusRes.json();
+
+      if (!pricingRes.ok) throw new Error(pricingData?.message || 'Failed to load pricing');
+      if (!statusRes.ok) throw new Error(statusData?.message || 'Failed to load subscription status');
+
+      setPricing(pricingData);
+      setStatus(statusData);
+
+      if (VALID_STARTER_TOOLS.has(statusData.activeTool)) {
+        setSelectedTool(statusData.activeTool);
+      } else {
+        setSelectedTool('');
+      }
+    } catch (error) {
+      message.error(error.message || 'Failed to load subscription data');
+    } finally {
+      setLoading(false);
+    }
+  }, [buildHeaders, message]);
+
+  const verifyPayfastPayment = useCallback(async (basketId) => {
+    const hideLoading = message.loading('Verifying PKR payment...', 0);
+    try {
+      const res = await fetch(`${API_BASE_URL}/payments/verify/${basketId}`, {
+        headers: buildHeaders(null),
+      });
+      const data = await res.json();
+
+      if (data.success && (data.payfast?.status === 'success' || data.payfast?.status === '00')) {
+        message.success('Payment verified. Your subscription is active.', 5);
+        await fetchBillingData();
+      } else {
+        message.warning(data?.payfast?.message || 'Payment is still processing.');
+      }
+    } catch {
+      message.warning('Could not verify PKR payment automatically.');
+    } finally {
+      hideLoading();
+      clearBillingQuery();
+    }
+  }, [API_BASE_URL, buildHeaders, clearBillingQuery, fetchBillingData, message]);
+
+  const verifyCryptoPayment = useCallback(async (basketId) => {
+    const hideLoading = message.loading('Verifying crypto payment...', 0);
+    try {
+      const res = await fetch(`${API_BASE_URL}/crypto-payments/verify/${basketId}`, {
+        headers: buildHeaders(null),
+      });
+      const data = await res.json();
+
+      if (data?.success && data?.data?.status === 'completed') {
+        message.success('Crypto payment verified. Your subscription is active.', 5);
+        await fetchBillingData();
+      } else if (data?.data?.status === 'failed') {
+        message.error('Crypto payment failed.');
+      } else {
+        message.info('Crypto payment is still processing.');
+      }
+    } catch {
+      message.warning('Could not verify crypto payment automatically.');
+    } finally {
+      hideLoading();
+      clearBillingQuery();
+    }
+  }, [API_BASE_URL, buildHeaders, clearBillingQuery, fetchBillingData, message]);
+
+  useEffect(() => {
+    fetchBillingData();
+  }, [fetchBillingData]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const basketId = params.get('basket_id');
+    const payfastSuccess = params.get('success') === 'true';
+    const cryptoSuccess = params.get('crypto_success') === 'true';
+    const cryptoCancelled = params.get('crypto_cancelled') === 'true';
+
+    if (basketId && payfastSuccess) {
+      verifyPayfastPayment(basketId);
+      return;
+    }
+
+    if (basketId && cryptoSuccess) {
+      verifyCryptoPayment(basketId);
+      return;
+    }
+
+    if (basketId && cryptoCancelled) {
+      message.info('Crypto payment was cancelled.');
+      clearBillingQuery();
+    }
+  }, [clearBillingQuery, message, verifyCryptoPayment, verifyPayfastPayment]);
+
+  const resolveCryptoPlanId = useCallback((planType) => {
+    if (planType === 'pro') return 'pro';
+    return selectedTool === 'meta_tracker' ? 'starter_meta' : 'starter';
+  }, [selectedTool]);
+
+  const hasValidStarterTool = useCallback(() => VALID_STARTER_TOOLS.has(selectedTool), [selectedTool]);
+
+  const startPayfastCheckout = useCallback(async (planType) => {
+    if (planType === 'starter' && !hasValidStarterTool()) {
+      setPaymentModalOpen(false);
+      setPendingPlanType(null);
+      setStarterToolError('Please select Google or Meta before continuing.');
+      return;
+    }
+
+    setCheckoutLoading(true);
     try {
       const response = await fetch(`${API_BASE_URL}/payments/initiate`, {
         method: 'POST',
-        headers,
+        headers: buildHeaders(),
         body: JSON.stringify({
           planType,
-          activeTool: planType === 'starter' ? selectedTool : 'both'
+          activeTool: planType === 'starter' ? selectedTool : 'both',
         }),
       });
 
       const data = await response.json();
-
       if (!response.ok) {
         throw new Error(data.error || data.payfast?.message || data.message || 'Payment initiation failed');
       }
 
-      if (data.paymentFlow === 'sandbox_api' || data.payfast?.sandboxAutoProcessed) {
-        if (data.success) {
-          message.success(`Sandbox payment successful. Order ID: ${data.payfast?.basket_id || data.basketId}`, 6);
-          window.history.replaceState({}, '', '/billing');
-          const [pricingRes, statusRes] = await Promise.all([
-            fetch(`${API_BASE_URL}/settings/subscription/pricing`, { headers }),
-            fetch(`${API_BASE_URL}/settings/subscription/status`, { headers })
-          ]);
-          setPricing(await pricingRes.json());
-          setStatus(await statusRes.json());
-        } else {
-          throw new Error(data.payfast?.message || 'Sandbox payment failed');
-        }
-        return;
-      }
-
-      // APPS PayFast Legacy Redirection: Submit hidden form
       const form = document.createElement('form');
       form.method = 'POST';
       form.action = data.payfast.checkout_url;
 
-      // Add ALL parameters returned by backend as hidden inputs
       Object.entries(data.payfast).forEach(([key, value]) => {
-        if (key !== 'checkout_url') {
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = key;
-          input.value = value;
-          form.appendChild(input);
-        }
+        if (key === 'checkout_url') return;
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
       });
 
       document.body.appendChild(form);
       form.submit();
-
-    } catch (err) {
-      console.error('Payment Select Error:', err);
-      message.error(err.message || 'Failed to start payment process');
+    } catch (error) {
+      console.error('PKR payment start error:', error);
+      message.error(error.message || 'Failed to start PKR payment');
     } finally {
-      setUpgrading(false);
+      setCheckoutLoading(false);
+      setPaymentModalOpen(false);
+      setPendingPlanType(null);
     }
+  }, [API_BASE_URL, buildHeaders, hasValidStarterTool, message, selectedTool]);
+
+  const startCryptoCheckout = useCallback(async (planType) => {
+    if (planType === 'starter' && !hasValidStarterTool()) {
+      setPaymentModalOpen(false);
+      setPendingPlanType(null);
+      setStarterToolError('Please select Google or Meta before continuing.');
+      return;
+    }
+
+    setCheckoutLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/crypto-payments/initiate`, {
+        method: 'POST',
+        headers: buildHeaders(),
+        body: JSON.stringify({
+          planId: resolveCryptoPlanId(planType),
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.message || 'Failed to start crypto payment');
+      }
+
+      const invoiceUrl = payload?.data?.invoiceUrl;
+      if (!invoiceUrl) {
+        throw new Error('Crypto invoice URL not returned');
+      }
+
+      window.location.href = invoiceUrl;
+    } catch (error) {
+      console.error('Crypto payment start error:', error);
+      message.error(error.message || 'Failed to start crypto payment');
+    } finally {
+      setCheckoutLoading(false);
+      setPaymentModalOpen(false);
+      setPendingPlanType(null);
+    }
+  }, [API_BASE_URL, buildHeaders, hasValidStarterTool, message, resolveCryptoPlanId]);
+
+  const openPaymentModal = (planType) => {
+    if (planType === 'starter' && !hasValidStarterTool()) {
+      setPaymentModalOpen(false);
+      setPendingPlanType(null);
+      setStarterToolError('Please select Google or Meta before continuing.');
+      return;
+    }
+    setStarterToolError('');
+    setPendingPlanType(planType);
+    setPaymentModalOpen(true);
   };
 
-  if (loading) return <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 100 }}><Spin size="large" /></div>;
+  const planCards = useMemo(() => {
+    const isStarter = status?.planType === 'starter';
+    const isPro = status?.planType === 'pro';
 
-  const isStarter = status?.planType === 'starter';
-  const isPro = status?.planType === 'pro';
+    return [
+      {
+        key: 'starter',
+        heading: 'STARTER',
+        title: 'Starter',
+        description: 'Perfect for solo marketers.',
+        price: pricing.starter,
+        current: isStarter && !status?.isTrialing,
+        badge: null,
+        emphasis: false,
+        buttonLabel: isStarter && !status?.isTrialing ? 'Current Plan' : 'Choose Starter',
+        features: PLAN_FEATURES.starter,
+      },
+      {
+        key: 'pro',
+        heading: 'PROFESSIONAL',
+        title: 'Professional',
+        description: 'The best value for growing teams.',
+        price: pricing.pro,
+        current: isPro && !status?.isTrialing,
+        badge: 'Popular',
+        emphasis: true,
+        buttonLabel: isPro && !status?.isTrialing ? 'Current Plan' : 'Choose Professional',
+        features: PLAN_FEATURES.pro,
+      },
+    ];
+  }, [pricing, status]);
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 100 }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
 
   return (
-    <div style={{ padding: '0 20px 40px' }}>
-      <Row justify="center" style={{ marginBottom: 40 }}>
-        <Col span={24} style={{ textAlign: 'center' }}>
-          <Title level={2}>Subscription & Billing</Title>
-          <Paragraph type="secondary" style={{ fontSize: 16 }}>
-            Manage your plan, track your trial, and upgrade your tracking capabilities.
-          </Paragraph>
-        </Col>
-      </Row>
+    <div style={{ padding: '0 20px 48px' }}>
+      <div style={{ textAlign: 'center', marginBottom: 28 }}>
+        <Title level={2} style={{ marginBottom: 8 }}>Subscription</Title>
+        <Paragraph type="secondary" style={{ fontSize: 16, marginBottom: 0 }}>
+          Choose a plan, then select whether you want to pay in PKR or crypto.
+        </Paragraph>
+      </div>
 
       {status?.isTrialing && (
-        <Alert
-          message={
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span>
-                <TrophyOutlined style={{ marginRight: 8, color: '#084b8a' }} />
-                Your <strong>7-Day Free Trial</strong> is currently active.
-              </span>
-              <Tag color="processing" style={{ borderRadius: 12, padding: '2px 12px' }}>
-                {status?.trialDaysRemaining} days remaining
-              </Tag>
-            </div>
-          }
-          type="info"
-          showIcon={false}
-          style={{ marginBottom: 32, borderRadius: 12, border: '1px solid #084b8a' }}
-        />
+        <Card
+          bordered={false}
+          style={{
+            marginBottom: 28,
+            borderRadius: 20,
+            background: '#eef6ff',
+            border: '1px solid rgba(8, 75, 138, 0.15)',
+          }}
+        >
+          <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }} wrap>
+            <Space>
+              <TrophyOutlined style={{ color: '#084b8a', fontSize: 18 }} />
+              <Text style={{ color: '#0f172a' }}>
+                Your free trial is active.
+              </Text>
+            </Space>
+            <Tag color="processing" style={{ borderRadius: 999, padding: '6px 14px', fontWeight: 700 }}>
+              {status?.trialDaysRemaining} days remaining
+            </Tag>
+          </Space>
+        </Card>
       )}
 
-      <Row gutter={[24, 24]}>
-        {/* Starter Plan */}
-        <Col xs={24} md={12}>
-          <Card
-            hoverable
-            className={isStarter ? 'active-plan-card' : ''}
-            style={{
-              borderRadius: 20,
-              border: isStarter ? '2px solid #084b8a' : '1px solid #f1f5f9',
-              height: '100%'
-            }}
-          >
-            <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <RocketOutlined style={{ fontSize: 40, color: '#084b8a', marginBottom: 16 }} />
-              <Title level={3} style={{ margin: 0 }}>Starter Plan</Title>
-              <Title level={2} style={{ margin: '16px 0 8px' }}>
-                PKR {pricing.starter}
-                <Text type="secondary" style={{ fontSize: 14, fontWeight: 400 }}> / month</Text>
-              </Title>
-              <Text type="secondary">Perfect for single platform tracking.</Text>
-            </div>
-
-            <Divider />
-
-            <Space direction="vertical" size="middle" style={{ width: '100%', marginBottom: 32 }}>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <CheckCircleFilled style={{ color: '#10b981', marginRight: 10 }} />
-                <Text>Choose ONE Platform (Google or Meta)</Text>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <CheckCircleFilled style={{ color: '#10b981', marginRight: 10 }} />
-                <Text>Direct Invite Links (By-pass Flow)</Text>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <CheckCircleFilled style={{ color: '#10b981', marginRight: 10 }} />
-                <Text>Basic Analytics & Attribution</Text>
-              </div>
-            </Space>
-
-            <Divider orientation="left">Select Feature</Divider>
-            <Radio.Group
-              value={selectedTool}
-              onChange={(e) => setSelectedTool(e.target.value)}
-              disabled={isStarter && !status?.isTrialing}
-              style={{ width: '100%', marginBottom: 32 }}
+      <Row gutter={[32, 32]} align="stretch">
+        {planCards.map((plan) => (
+          <Col xs={24} lg={12} key={plan.key}>
+            <Card
+              bordered={false}
+              style={{
+                height: '100%',
+                minHeight: 630,
+                borderRadius: 30,
+                border: plan.emphasis ? '3px solid #0b5394' : '1px solid #dbe7f3',
+                boxShadow: plan.emphasis ? '0 20px 45px rgba(8, 75, 138, 0.12)' : '0 10px 30px rgba(15, 23, 42, 0.05)',
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+              styles={{ body: { padding: '34px 36px 32px' } }}
             >
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <Radio.Button value="google_tracker" style={{ width: '100%', borderRadius: 8 }}>Google Ads Tracker</Radio.Button>
-                <Radio.Button value="meta_tracker" style={{ width: '100%', borderRadius: 8 }}>Meta Ads Tracker</Radio.Button>
+              {plan.badge && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 16,
+                    right: 16,
+                    background: '#0b5394',
+                    color: '#fff',
+                    padding: '7px 14px',
+                    borderRadius: 12,
+                    fontSize: 14,
+                    fontWeight: 700,
+                  }}
+                >
+                  {plan.badge}
+                </div>
+              )}
+
+              <div style={{ textAlign: 'center', marginBottom: 30 }}>
+                <Text
+                  style={{
+                    color: '#0b5394',
+                    fontSize: 16,
+                    fontWeight: 800,
+                    letterSpacing: '0.16em',
+                  }}
+                >
+                  {plan.heading}
+                </Text>
+                <Title
+                  level={1}
+                  style={{
+                    margin: '22px 0 6px',
+                    color: '#1e293b',
+                    fontWeight: 800,
+                    fontSize: 'clamp(46px, 5vw, 62px)',
+                    lineHeight: 1,
+                  }}
+                >
+                  {plan.price}
+                  <span style={{ fontSize: '0.42em', marginLeft: 8 }}>PKR</span>
+                </Title>
+                <Text style={{ fontSize: 15, color: '#64748b' }}>{plan.description}</Text>
+              </div>
+
+              {plan.key === 'starter' && (
+                <div style={{ marginBottom: 24 }}>
+                  <Text style={{ display: 'block', color: '#64748b', fontWeight: 600, marginBottom: 10, fontSize: 13 }}>
+                    Select tracking tool
+                  </Text>
+                  <Radio.Group
+                    value={selectedTool}
+                    onChange={(e) => {
+                      setSelectedTool(e.target.value);
+                      if (starterToolError) {
+                        setStarterToolError('');
+                      }
+                    }}
+                    disabled={plan.current}
+                    style={{ width: '100%' }}
+                  >
+                    <Row gutter={[12, 12]}>
+                      {toolOptions.map((option) => (
+                        <Col xs={24} sm={12} key={option.value}>
+                          <Radio.Button
+                            value={option.value}
+                            style={{
+                              width: '100%',
+                              height: 42,
+                              borderRadius: 12,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontWeight: 700,
+                              fontSize: 13,
+                            }}
+                          >
+                            {option.label}
+                          </Radio.Button>
+                        </Col>
+                      ))}
+                    </Row>
+                  </Radio.Group>
+                </div>
+              )}
+
+              <Space direction="vertical" size={16} style={{ width: '100%', marginBottom: 30 }}>
+                {plan.features.map((feature) => (
+                  <Space key={feature} align="start" style={{ width: '100%' }}>
+                    <CheckCircleFilled style={{ color: plan.emphasis ? '#0b5394' : '#cbd5e1', fontSize: 18, marginTop: 3 }} />
+                    <Text style={{ fontSize: 16, color: '#1e293b' }}>{feature}</Text>
+                  </Space>
+                ))}
               </Space>
-            </Radio.Group>
 
-            <Button
-              type={isStarter ? "default" : "primary"}
-              block
-              size="large"
-              style={{ borderRadius: 12, height: 48, fontWeight: 700 }}
-              disabled={isStarter && !status?.isTrialing}
-              loading={upgrading}
-              onClick={() => handleSelectPlan('starter')}
-            >
-              {isStarter ? "Current Plan" : "Get Starter"}
-            </Button>
-          </Card>
-        </Col>
-
-        {/* Pro Plan */}
-        <Col xs={24} md={12}>
-          <Card
-            hoverable
-            className={isPro ? 'active-plan-card' : ''}
-            style={{
-              borderRadius: 20,
-              border: isPro ? '2px solid #084b8a' : '1px solid #f1f5f9',
-              height: '100%',
-              backgroundColor: '#f8fafc'
-            }}
-          >
-            <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <ThunderboltOutlined style={{ fontSize: 40, color: '#f59e0b', marginBottom: 16 }} />
-              <div style={{ position: 'absolute', top: 16, right: 16 }}>
-                <Tag color="gold" style={{ borderRadius: 8 }}>POPULAR</Tag>
-              </div>
-              <Title level={3} style={{ margin: 0 }}>Pro Plan</Title>
-              <Title level={2} style={{ margin: '16px 0 8px' }}>
-                PKR {pricing.pro}
-                <Text type="secondary" style={{ fontSize: 14, fontWeight: 400 }}> / month</Text>
-              </Title>
-              <Text type="secondary">Full scale tracking for data-driven teams.</Text>
-            </div>
-
-            <Divider />
-
-            <Space direction="vertical" size="middle" style={{ width: '100%', marginBottom: 32 }}>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <CheckCircleFilled style={{ color: '#10b981', marginRight: 10 }} />
-                <Text strong>Both Google & Meta Tracking</Text>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <CheckCircleFilled style={{ color: '#10b981', marginRight: 10 }} />
-                <Text>Advanced Retention Bot Access</Text>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <CheckCircleFilled style={{ color: '#10b981', marginRight: 10 }} />
-                <Text>Lead Scoring & Management</Text>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <CheckCircleFilled style={{ color: '#10b981', marginRight: 10 }} />
-                <Text>Priority Support</Text>
-              </div>
-            </Space>
-
-            <div style={{ height: 62 }}></div> {/* Spacer to match Radio height */}
-
-            <Button
-              type={isPro ? "default" : "primary"}
-              block
-              size="large"
-              style={{ borderRadius: 12, height: 48, fontWeight: 700, backgroundColor: isPro ? undefined : '#084b8a' }}
-              disabled={isPro && !status?.isTrialing}
-              loading={upgrading}
-              onClick={() => handleSelectPlan('pro')}
-            >
-              {isPro ? "Current Plan" : "Upgrade to Pro"}
-            </Button>
-          </Card>
-        </Col>
+              <Button
+                type={plan.emphasis ? 'primary' : 'default'}
+                block
+                size="large"
+                disabled={plan.current}
+                loading={checkoutLoading && pendingPlanType === plan.key}
+                onClick={() => openPaymentModal(plan.key)}
+                style={{
+                  marginTop: 'auto',
+                  height: 60,
+                  borderRadius: 18,
+                  fontSize: 16,
+                  fontWeight: 800,
+                  borderWidth: 2,
+                  background: plan.emphasis ? '#0b5394' : '#fff',
+                  color: plan.emphasis ? '#fff' : '#0b5394',
+                  borderColor: '#0b5394',
+                  boxShadow: plan.emphasis ? '0 10px 24px rgba(8, 75, 138, 0.18)' : 'none',
+                }}
+              >
+                {plan.buttonLabel}
+              </Button>
+              {plan.key === 'starter' && starterToolError && (
+                <Text style={{ display: 'block', marginTop: 10, color: '#ef4444', fontWeight: 600, fontSize: 13 }}>
+                  {starterToolError}
+                </Text>
+              )}
+            </Card>
+          </Col>
+        ))}
       </Row>
 
-      <Card style={{ marginTop: 40, borderRadius: 16, border: 'none', backgroundColor: '#eff6ff' }}>
-        <Space>
-          <InfoCircleOutlined style={{ color: '#084b8a' }} />
+      <Card
+        bordered={false}
+        style={{ marginTop: 28, borderRadius: 20, background: '#f8fbff', border: '1px solid #dbe7f3' }}
+      >
+        <Space align="start">
+          <InfoCircleOutlined style={{ color: '#0b5394', marginTop: 3 }} />
           <Text type="secondary">
-            Subscriptions are billed monthly. You can upgrade from Starter to Pro at any time. Prices are subject to change based on Super Admin updates.
+            Payments are billed monthly. PKR checkout uses PayFast. Crypto checkout uses NowPayments. Starter supports one tracking tool at a time. Professional activates both tools.
           </Text>
         </Space>
       </Card>
+
+      <Modal
+        open={paymentModalOpen}
+        onCancel={() => {
+          if (!checkoutLoading) {
+            setPaymentModalOpen(false);
+            setPendingPlanType(null);
+          }
+        }}
+        footer={null}
+        centered
+        width={560}
+        title={null}
+        closable={!checkoutLoading}
+      >
+        <div style={{ paddingTop: 6 }}>
+          <Title level={3} style={{ marginBottom: 8 }}>Choose payment method</Title>
+          <Paragraph type="secondary" style={{ marginBottom: 22 }}>
+            {pendingPlanType === 'starter'
+              ? `Starter plan${selectedTool === 'meta_tracker' ? ' (Meta Tracker)' : ' (Google Tracker)'}`
+              : 'Professional plan'}
+          </Paragraph>
+
+          <Row gutter={[16, 16]}>
+            <Col xs={24} md={12}>
+              <Card
+                hoverable
+                onClick={() => !checkoutLoading && startPayfastCheckout(pendingPlanType)}
+                style={{ borderRadius: 20, border: '1px solid #dbe7f3', height: '100%' }}
+                styles={{ body: { padding: 24 } }}
+              >
+                <Space direction="vertical" size={14} style={{ width: '100%' }}>
+                  <CreditCardOutlined style={{ fontSize: 28, color: '#0b5394' }} />
+                  <Text strong style={{ fontSize: 20 }}>Pay with PKR</Text>
+                  <Text type="secondary">Continue with PayFast checkout in Pakistani Rupees.</Text>
+                  <Button
+                    type="primary"
+                    block
+                    size="large"
+                    loading={checkoutLoading}
+                    style={{ borderRadius: 14, marginTop: 12, background: '#0b5394' }}
+                  >
+                    Continue
+                  </Button>
+                </Space>
+              </Card>
+            </Col>
+
+            <Col xs={24} md={12}>
+              <Card
+                hoverable
+                onClick={() => !checkoutLoading && startCryptoCheckout(pendingPlanType)}
+                style={{ borderRadius: 20, border: '1px solid #dbe7f3', height: '100%' }}
+                styles={{ body: { padding: 24 } }}
+              >
+                <Space direction="vertical" size={14} style={{ width: '100%' }}>
+                  <WalletOutlined style={{ fontSize: 28, color: '#16a34a' }} />
+                  <Text strong style={{ fontSize: 20 }}>Pay with Crypto</Text>
+                  <Text type="secondary">Create a NowPayments invoice and complete payment in crypto.</Text>
+                  <Button
+                    block
+                    size="large"
+                    loading={checkoutLoading}
+                    style={{ borderRadius: 14, marginTop: 12, borderColor: '#16a34a', color: '#16a34a', fontWeight: 700 }}
+                  >
+                    Continue
+                  </Button>
+                </Space>
+              </Card>
+            </Col>
+          </Row>
+        </div>
+      </Modal>
     </div>
   );
 };
