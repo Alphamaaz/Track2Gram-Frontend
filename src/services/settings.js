@@ -64,6 +64,15 @@ export const settingsService = {
             method: 'GET',
         });
     },
+
+    /**
+     * Get current workspace subscription status
+     */
+    getSubscriptionStatus: () => {
+        return request('/settings/subscription/status', {
+            method: 'GET',
+        });
+    },
 };
 
 export default settingsService;

@@ -1,17 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Typography, Input, Button, Space, Form, Skeleton, App, Row, Col, Alert, Select } from 'antd';
-import { SaveOutlined, LinkOutlined, RocketOutlined, GithubOutlined } from '@ant-design/icons';
+import { Typography, Input, Button, Card, Space, Form, Skeleton, App, Row, Col, Alert, Tooltip } from 'antd';
+import { SaveOutlined, LinkOutlined, RocketOutlined, CheckCircleFilled, SyncOutlined, InfoCircleOutlined, GithubOutlined } from '@ant-design/icons';
 import { settingsService } from '../services/settings';
 import { metaAdsService } from '../services/metaAds';
 
 const { Title, Text } = Typography;
-
-const META_EVENT_OPTIONS = [
-    { value: 'Subscribe', label: 'Subscribe' },
-    { value: 'Lead', label: 'Lead' },
-    { value: 'LeadInitiated', label: 'LeadInitiated' },
-    { value: 'SubscribeInitiated', label: 'SubscribeInitiated' },
-];
 
 const MetaAdsIntegration = () => {
     const { message, modal } = App.useApp();
@@ -23,48 +16,16 @@ const MetaAdsIntegration = () => {
     const [allSettings, setAllSettings] = useState({});
     const [statusData, setStatusData] = useState(null);
     const [statusLoading, setStatusLoading] = useState(false);
-    const [statusError, setStatusError] = useState(null);
-
-    const mapMetaError = useCallback((rawMessage) => {
-        const msg = String(rawMessage || '').trim();
-        if (!msg) {
-            return null;
-        }
-
-        if (/ads_management|ads_read/i.test(msg)) {
-            return {
-                title: 'Meta Ads permissions are missing',
-                description: msg,
-            };
-        }
-
-        if (/permission|forbidden|not authorized|oauth/i.test(msg)) {
-            return {
-                title: 'Meta connection permission error',
-                description: msg,
-            };
-        }
-
-        return {
-            title: 'Meta integration error',
-            description: msg,
-        };
-    }, []);
 
     const fetchStatus = useCallback(async () => {
         try {
             setStatusLoading(true);
-            setStatusError(null);
             const status = await metaAdsService.getStatus();
             if (status.success) {
                 setStatusData(status.data);
-                if (status.data?.error) {
-                    setStatusError(status.data.error);
-                }
             }
         } catch (error) {
             console.error('Failed to fetch status:', error);
-            setStatusError(error?.message || 'Failed to fetch Meta integration status');
         } finally {
             setStatusLoading(false);
         }
@@ -98,17 +59,10 @@ const MetaAdsIntegration = () => {
     const onFinish = async (values) => {
         try {
             setSaving(true);
-            const selectedEventName = values?.META_EVENT_NAME;
-            const isValidEvent = META_EVENT_OPTIONS.some((option) => option.value === selectedEventName);
-            if (!isValidEvent) {
-                message.error('Please select a valid Meta event from the dropdown.');
-                return;
-            }
             // Combine existing settings with new form values, scope and workspaceId
             const payload = {
                 ...allSettings,
                 ...values,
-                META_EVENT_NAME: selectedEventName,
                 scope: integrationScope,
                 workspaceId: workspaceId
             };
@@ -118,11 +72,6 @@ const MetaAdsIntegration = () => {
             const status = await metaAdsService.getStatus();
             if (status.success) {
                 setStatusData(status.data);
-                if (status.data?.error) {
-                    setStatusError(status.data.error);
-                } else {
-                    setStatusError(null);
-                }
                 if (status.data.isConfigured) {
                     message.success('Configuration saved. Meta Ads is now LIVE and ACTIVE.');
                 } else {
@@ -136,13 +85,7 @@ const MetaAdsIntegration = () => {
             fetchSettings(true);
         } catch (error) {
             console.error('Failed to update settings:', error);
-            const backendMessage = error?.message || error?.error || 'Failed to update settings';
-            setStatusError(backendMessage);
-            if (/permission|permissions|oauth|access token|not configured|not connected/i.test(String(backendMessage))) {
-                message.error(`Meta connection error: ${backendMessage}`);
-            } else {
-                message.error(backendMessage);
-            }
+            message.error(error.message || 'Failed to update settings');
         } finally {
             setSaving(false);
         }
@@ -202,54 +145,6 @@ const MetaAdsIntegration = () => {
         color: '#fff',
     };
 
-    const statusAlerts = [];
-    const parsedStatusError = mapMetaError(statusError);
-    if (parsedStatusError) {
-        statusAlerts.push({
-            type: 'error',
-            message: parsedStatusError.title,
-            description: parsedStatusError.description,
-        });
-    }
-    if (statusData) {
-        if (!statusData.accessTokenSet) {
-            statusAlerts.push({
-                type: 'error',
-                message: 'Meta Access Token is missing',
-                description: 'Add a valid Meta Conversion API Access Token to connect your workspace.',
-            });
-        }
-        if (!statusData.pixelIdSet) {
-            statusAlerts.push({
-                type: 'error',
-                message: 'Meta Pixel is not connected',
-                description: 'Enter a valid Pixel ID so events can be sent to the correct data source.',
-            });
-        }
-        if (!statusData.adAccountIdSet) {
-            statusAlerts.push({
-                type: 'warning',
-                message: 'Meta Ad Account is not connected',
-                description: 'Set your Meta Ad Account ID to enable ad spend sync and account-level validation.',
-            });
-        }
-        if (statusData.adAccountIdSet && statusData.adAccountAccessChecked && !statusData.adAccountAccessOk && statusData.error) {
-            const parsedApiError = mapMetaError(statusData.error);
-            statusAlerts.push({
-                type: 'error',
-                message: parsedApiError?.title || 'Meta Ad Account access failed',
-                description: parsedApiError?.description || statusData.error,
-            });
-        }
-        if (!statusData.isConfigured && statusData.accessTokenSet && statusData.pixelIdSet) {
-            statusAlerts.push({
-                type: 'warning',
-                message: 'Meta integration is incomplete',
-                description: 'Credentials are present, but the connection is still not fully configured. Save settings after selecting an event.',
-            });
-        }
-    }
-
     return (
         <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', minHeight: '100vh', background: '#f8fafc' }}>
             {/* Header Section */}
@@ -263,20 +158,6 @@ const MetaAdsIntegration = () => {
                     </Text>
                 </div>
             </div>
-
-            {statusAlerts.length > 0 && (
-                <Space direction="vertical" size={12} style={{ width: '100%', marginBottom: 20 }}>
-                    {statusAlerts.map((alert, idx) => (
-                        <Alert
-                            key={`${alert.type}-${idx}`}
-                            type={alert.type}
-                            showIcon
-                            message={alert.message}
-                            description={alert.description}
-                        />
-                    ))}
-                </Space>
-            )}
 
             <Form
                 form={form}
@@ -355,27 +236,13 @@ const MetaAdsIntegration = () => {
                                 <Form.Item
                                     label={<Text strong style={{ color: '#334155', fontSize: '14px' }}>Pixel Event Name</Text>}
                                     name="META_EVENT_NAME"
-                                    rules={[
-                                        { required: true, message: 'Please select a Meta event name' },
-                                        {
-                                            validator: (_, value) => {
-                                                if (!value || META_EVENT_OPTIONS.some((option) => option.value === value)) {
-                                                    return Promise.resolve();
-                                                }
-                                                return Promise.reject(new Error('Please select a valid Meta event from the list'));
-                                            }
-                                        }
-                                    ]}
-                                    tooltip="Select the event name that should be sent to Meta Conversion API"
+                                    tooltip="Standard Meta event to fire (e.g., Lead, Subscribe, Purchase)"
                                 >
-                                    <Select
-                                        placeholder="Select Meta event"
+                                    <Input
+                                        placeholder="Enter event name (e.g. Lead)"
                                         size="large"
-                                        className="premium-input-field premium-select-field"
+                                        className="premium-input-field"
                                         style={{ height: '50px' }}
-                                        options={META_EVENT_OPTIONS}
-                                        showSearch
-                                        optionFilterProp="label"
                                     />
                                 </Form.Item>
                             </Col>
@@ -475,18 +342,6 @@ const MetaAdsIntegration = () => {
                         border-color: #cbd5e1 !important;
                     }
                     .premium-input-field:focus, .ant-input-affix-wrapper-focused.premium-input-field {
-                        border-color: #084b8a !important;
-                        box-shadow: 0 0 0 4px rgba(8, 75, 138, 0.1) !important;
-                    }
-                    .premium-select-field .ant-select-selector {
-                        border-radius: 12px !important;
-                        border: 1.5px solid #e2e8f0 !important;
-                        min-height: 50px !important;
-                        display: flex !important;
-                        align-items: center !important;
-                        box-shadow: none !important;
-                    }
-                    .premium-select-field.ant-select-focused .ant-select-selector {
                         border-color: #084b8a !important;
                         box-shadow: 0 0 0 4px rgba(8, 75, 138, 0.1) !important;
                     }

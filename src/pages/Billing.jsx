@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import dayjs from 'dayjs';
 import {
   App,
   Button,
@@ -16,9 +17,7 @@ import {
 } from 'antd';
 import {
   CheckCircleFilled,
-  CreditCardOutlined,
   InfoCircleOutlined,
-  ThunderboltOutlined,
   TrophyOutlined,
   WalletOutlined,
 } from '@ant-design/icons';
@@ -26,6 +25,11 @@ import { API_BASE_URL } from '../config';
 import { getApiHeaders } from '../utils/apiHeaders';
 
 const { Title, Text, Paragraph } = Typography;
+
+const DISPLAY_PRICES = {
+  starter: 19.99,
+  pro: 39.99,
+};
 
 const PLAN_FEATURES = {
   starter: [
@@ -48,13 +52,27 @@ const toolOptions = [
 ];
 
 const VALID_STARTER_TOOLS = new Set(toolOptions.map((option) => option.value));
+const formatDateLabel = (value) => (value ? dayjs(value).format('MMM DD, YYYY') : 'N/A');
+const formatPlanLabel = (value) => {
+  if (value === 'starter') return 'Starter';
+  if (value === 'pro') return 'Professional';
+  return 'None';
+};
+const formatToolLabel = (value) => {
+  if (value === 'google_tracker') return 'Google Tracker';
+  if (value === 'meta_tracker') return 'Meta Tracker';
+  if (value === 'both') return 'Google + Meta';
+  return 'N/A';
+};
 
-const formatPkr = (value) => `PKR ${Number(value || 0).toLocaleString()}`;
+const normalizeSubscriptionStatus = (payload) => {
+  if (!payload || typeof payload !== 'object') return null;
+  return payload.data && typeof payload.data === 'object' ? payload.data : payload;
+};
 
 const Billing = () => {
   const { message } = App.useApp();
   const [loading, setLoading] = useState(true);
-  const [pricing, setPricing] = useState({ starter: 0, pro: 0 });
   const [status, setStatus] = useState(null);
   const [selectedTool, setSelectedTool] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -78,22 +96,18 @@ const Billing = () => {
   const fetchBillingData = useCallback(async () => {
     setLoading(true);
     try {
-      const [pricingRes, statusRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/settings/subscription/pricing`, { headers: buildHeaders(null) }),
-        fetch(`${API_BASE_URL}/settings/subscription/status`, { headers: buildHeaders(null) }),
-      ]);
+      const statusRes = await fetch(`${API_BASE_URL}/settings/subscription/status`, { headers: buildHeaders(null) });
 
-      const pricingData = await pricingRes.json();
       const statusData = await statusRes.json();
 
-      if (!pricingRes.ok) throw new Error(pricingData?.message || 'Failed to load pricing');
       if (!statusRes.ok) throw new Error(statusData?.message || 'Failed to load subscription status');
 
-      setPricing(pricingData);
-      setStatus(statusData);
+      const normalizedStatus = normalizeSubscriptionStatus(statusData);
 
-      if (VALID_STARTER_TOOLS.has(statusData.activeTool)) {
-        setSelectedTool(statusData.activeTool);
+      setStatus(normalizedStatus);
+
+      if (VALID_STARTER_TOOLS.has(normalizedStatus?.activeTool)) {
+        setSelectedTool(normalizedStatus.activeTool);
       } else {
         setSelectedTool('');
       }
@@ -103,28 +117,6 @@ const Billing = () => {
       setLoading(false);
     }
   }, [buildHeaders, message]);
-
-  const verifyPayfastPayment = useCallback(async (basketId) => {
-    const hideLoading = message.loading('Verifying PKR payment...', 0);
-    try {
-      const res = await fetch(`${API_BASE_URL}/payments/verify/${basketId}`, {
-        headers: buildHeaders(null),
-      });
-      const data = await res.json();
-
-      if (data.success && (data.payfast?.status === 'success' || data.payfast?.status === '00')) {
-        message.success('Payment verified. Your subscription is active.', 5);
-        await fetchBillingData();
-      } else {
-        message.warning(data?.payfast?.message || 'Payment is still processing.');
-      }
-    } catch {
-      message.warning('Could not verify PKR payment automatically.');
-    } finally {
-      hideLoading();
-      clearBillingQuery();
-    }
-  }, [API_BASE_URL, buildHeaders, clearBillingQuery, fetchBillingData, message]);
 
   const verifyCryptoPayment = useCallback(async (basketId) => {
     const hideLoading = message.loading('Verifying crypto payment...', 0);
@@ -157,14 +149,8 @@ const Billing = () => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const basketId = params.get('basket_id');
-    const payfastSuccess = params.get('success') === 'true';
     const cryptoSuccess = params.get('crypto_success') === 'true';
     const cryptoCancelled = params.get('crypto_cancelled') === 'true';
-
-    if (basketId && payfastSuccess) {
-      verifyPayfastPayment(basketId);
-      return;
-    }
 
     if (basketId && cryptoSuccess) {
       verifyCryptoPayment(basketId);
@@ -175,7 +161,7 @@ const Billing = () => {
       message.info('Crypto payment was cancelled.');
       clearBillingQuery();
     }
-  }, [clearBillingQuery, message, verifyCryptoPayment, verifyPayfastPayment]);
+  }, [clearBillingQuery, message, verifyCryptoPayment]);
 
   const resolveCryptoPlanId = useCallback((planType) => {
     if (planType === 'pro') return 'pro';
@@ -183,55 +169,6 @@ const Billing = () => {
   }, [selectedTool]);
 
   const hasValidStarterTool = useCallback(() => VALID_STARTER_TOOLS.has(selectedTool), [selectedTool]);
-
-  const startPayfastCheckout = useCallback(async (planType) => {
-    if (planType === 'starter' && !hasValidStarterTool()) {
-      setPaymentModalOpen(false);
-      setPendingPlanType(null);
-      setStarterToolError('Please select Google or Meta before continuing.');
-      return;
-    }
-
-    setCheckoutLoading(true);
-    try {
-      const response = await fetch(`${API_BASE_URL}/payments/initiate`, {
-        method: 'POST',
-        headers: buildHeaders(),
-        body: JSON.stringify({
-          planType,
-          activeTool: planType === 'starter' ? selectedTool : 'both',
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || data.payfast?.message || data.message || 'Payment initiation failed');
-      }
-
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = data.payfast.checkout_url;
-
-      Object.entries(data.payfast).forEach(([key, value]) => {
-        if (key === 'checkout_url') return;
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = key;
-        input.value = value;
-        form.appendChild(input);
-      });
-
-      document.body.appendChild(form);
-      form.submit();
-    } catch (error) {
-      console.error('PKR payment start error:', error);
-      message.error(error.message || 'Failed to start PKR payment');
-    } finally {
-      setCheckoutLoading(false);
-      setPaymentModalOpen(false);
-      setPendingPlanType(null);
-    }
-  }, [API_BASE_URL, buildHeaders, hasValidStarterTool, message, selectedTool]);
 
   const startCryptoCheckout = useCallback(async (planType) => {
     if (planType === 'starter' && !hasValidStarterTool()) {
@@ -294,7 +231,7 @@ const Billing = () => {
         heading: 'STARTER',
         title: 'Starter',
         description: 'Perfect for solo marketers.',
-        price: pricing.starter,
+        price: DISPLAY_PRICES.starter,
         current: isStarter && !status?.isTrialing,
         badge: null,
         emphasis: false,
@@ -306,7 +243,7 @@ const Billing = () => {
         heading: 'PROFESSIONAL',
         title: 'Professional',
         description: 'The best value for growing teams.',
-        price: pricing.pro,
+        price: DISPLAY_PRICES.pro,
         current: isPro && !status?.isTrialing,
         badge: 'Popular',
         emphasis: true,
@@ -314,7 +251,14 @@ const Billing = () => {
         features: PLAN_FEATURES.pro,
       },
     ];
-  }, [pricing, status]);
+  }, [status]);
+
+  const hasActivePlanDetails = Boolean(
+    status &&
+    status.planType &&
+    status.planType !== 'none' &&
+    (status.startedAt || status.expiresAt || VALID_STARTER_TOOLS.has(status.activeTool) || status.activeTool === 'both')
+  );
 
   if (loading) {
     return (
@@ -354,6 +298,48 @@ const Billing = () => {
               {status?.trialDaysRemaining} days remaining
             </Tag>
           </Space>
+        </Card>
+      )}
+
+      {hasActivePlanDetails && (
+        <Card
+          bordered={false}
+          style={{
+            marginBottom: 28,
+            borderRadius: 20,
+            border: '1px solid #dbe7f3',
+            background: '#fff',
+          }}
+        >
+          <Row gutter={[24, 16]}>
+            <Col xs={24} md={6}>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 6 }}>Current Plan</Text>
+              <Text strong style={{ fontSize: 18, color: '#1e293b' }}>
+                {formatPlanLabel(status?.planType)}
+              </Text>
+            </Col>
+            <Col xs={24} md={6}>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 6 }}>Active Tool</Text>
+              <Text strong style={{ fontSize: 18, color: '#1e293b' }}>
+                {formatToolLabel(status?.activeTool)}
+              </Text>
+            </Col>
+            <Col xs={24} md={6}>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 6 }}>Start Date</Text>
+              <Text strong style={{ fontSize: 18, color: '#1e293b' }}>
+                {formatDateLabel(status?.startedAt)}
+              </Text>
+            </Col>
+            <Col xs={24} md={6}>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 6 }}>End Date</Text>
+              <Space direction="vertical" size={2}>
+                <Text strong style={{ fontSize: 18, color: '#1e293b' }}>
+                  {formatDateLabel(status?.expiresAt)}
+                </Text>
+                {status?.isExpired && <Tag color="error" style={{ width: 'fit-content', borderRadius: 999 }}>Expired</Tag>}
+              </Space>
+            </Col>
+          </Row>
         </Card>
       )}
 
@@ -413,7 +399,7 @@ const Billing = () => {
                   }}
                 >
                   {plan.price}
-                  <span style={{ fontSize: '0.42em', marginLeft: 8 }}>PKR</span>
+                  <span style={{ fontSize: '0.34em', marginLeft: 8 }}>USD</span>
                 </Title>
                 <Text style={{ fontSize: 15, color: '#64748b' }}>{plan.description}</Text>
               </div>
@@ -507,7 +493,7 @@ const Billing = () => {
         <Space align="start">
           <InfoCircleOutlined style={{ color: '#0b5394', marginTop: 3 }} />
           <Text type="secondary">
-            Payments are billed monthly. PKR checkout uses PayFast. Crypto checkout uses NowPayments. Starter supports one tracking tool at a time. Professional activates both tools.
+            Payments are billed monthly. Frontend checkout currently accepts crypto only through NowPayments. Please use BEP20 (USDTBSC) where possible to minimize gateway charges. Starter supports one tracking tool at a time. Professional activates both tools.
           </Text>
         </Space>
       </Card>
@@ -527,61 +513,36 @@ const Billing = () => {
         closable={!checkoutLoading}
       >
         <div style={{ paddingTop: 6 }}>
-          <Title level={3} style={{ marginBottom: 8 }}>Choose payment method</Title>
+          <Title level={3} style={{ marginBottom: 8 }}>Complete payment</Title>
           <Paragraph type="secondary" style={{ marginBottom: 22 }}>
             {pendingPlanType === 'starter'
               ? `Starter plan${selectedTool === 'meta_tracker' ? ' (Meta Tracker)' : ' (Google Tracker)'}`
               : 'Professional plan'}
           </Paragraph>
 
-          <Row gutter={[16, 16]}>
-            <Col xs={24} md={12}>
-              <Card
-                hoverable
-                onClick={() => !checkoutLoading && startPayfastCheckout(pendingPlanType)}
-                style={{ borderRadius: 20, border: '1px solid #dbe7f3', height: '100%' }}
-                styles={{ body: { padding: 24 } }}
+          <Card
+            hoverable
+            onClick={() => !checkoutLoading && startCryptoCheckout(pendingPlanType)}
+            style={{ borderRadius: 20, border: '1px solid #dbe7f3', height: '100%' }}
+            styles={{ body: { padding: 24 } }}
+          >
+            <Space direction="vertical" size={14} style={{ width: '100%' }}>
+              <WalletOutlined style={{ fontSize: 28, color: '#16a34a' }} />
+              <Text strong style={{ fontSize: 20 }}>Pay with BEP20 (USDTBSC)</Text>
+              <Text type="secondary">
+                Continue with NowPayments using BEP20 USDTBSC. This is the preferred option because it reduces gateway charges.
+              </Text>
+              <Button
+                block
+                type="primary"
+                size="large"
+                loading={checkoutLoading}
+                style={{ borderRadius: 14, marginTop: 12, background: '#16a34a', borderColor: '#16a34a', fontWeight: 700 }}
               >
-                <Space direction="vertical" size={14} style={{ width: '100%' }}>
-                  <CreditCardOutlined style={{ fontSize: 28, color: '#0b5394' }} />
-                  <Text strong style={{ fontSize: 20 }}>Pay with PKR</Text>
-                  <Text type="secondary">Continue with PayFast checkout in Pakistani Rupees.</Text>
-                  <Button
-                    type="primary"
-                    block
-                    size="large"
-                    loading={checkoutLoading}
-                    style={{ borderRadius: 14, marginTop: 12, background: '#0b5394' }}
-                  >
-                    Continue
-                  </Button>
-                </Space>
-              </Card>
-            </Col>
-
-            <Col xs={24} md={12}>
-              <Card
-                hoverable
-                onClick={() => !checkoutLoading && startCryptoCheckout(pendingPlanType)}
-                style={{ borderRadius: 20, border: '1px solid #dbe7f3', height: '100%' }}
-                styles={{ body: { padding: 24 } }}
-              >
-                <Space direction="vertical" size={14} style={{ width: '100%' }}>
-                  <WalletOutlined style={{ fontSize: 28, color: '#16a34a' }} />
-                  <Text strong style={{ fontSize: 20 }}>Pay with Crypto</Text>
-                  <Text type="secondary">Create a NowPayments invoice and complete payment in crypto.</Text>
-                  <Button
-                    block
-                    size="large"
-                    loading={checkoutLoading}
-                    style={{ borderRadius: 14, marginTop: 12, borderColor: '#16a34a', color: '#16a34a', fontWeight: 700 }}
-                  >
-                    Continue
-                  </Button>
-                </Space>
-              </Card>
-            </Col>
-          </Row>
+                Continue with Crypto
+              </Button>
+            </Space>
+          </Card>
         </div>
       </Modal>
     </div>

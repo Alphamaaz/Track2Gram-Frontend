@@ -1,8 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Form, Input, Button, App, Divider, Skeleton } from 'antd';
+import { Modal, Form, Input, Button, App, Divider, Skeleton, Tag } from 'antd';
 import { UserOutlined, MailOutlined, GlobalOutlined, LogoutOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import authService from '../services/auth';
+import settingsService from '../services/settings';
+
+const formatPlanLabel = (value) => {
+    if (value === 'starter') return 'Starter';
+    if (value === 'pro') return 'Professional';
+    return 'No Active Plan';
+};
 
 const ProfileModal = ({ visible, onCancel }) => {
     const navigate = useNavigate();
@@ -11,12 +18,20 @@ const ProfileModal = ({ visible, onCancel }) => {
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(false);
     const [profileData, setProfileData] = useState({ name: '', role: '' });
+    const [subscriptionStatus, setSubscriptionStatus] = useState(null);
 
     const fetchProfile = React.useCallback(async () => {
         setFetching(true);
         try {
-            const response = await authService.getProfile();
+            const [response, subscriptionResponse] = await Promise.all([
+                authService.getProfile(),
+                settingsService.getSubscriptionStatus().catch(() => null),
+            ]);
             const userData = response.user || response;
+            const subscriptionData =
+                subscriptionResponse?.data && typeof subscriptionResponse.data === 'object'
+                    ? subscriptionResponse.data
+                    : subscriptionResponse;
 
             // Update localStorage with fresh user data
             localStorage.setItem('user', JSON.stringify(userData));
@@ -25,13 +40,14 @@ const ProfileModal = ({ visible, onCancel }) => {
                 name: userData.name || '',
                 role: userData.role || ''
             });
+            setSubscriptionStatus(subscriptionData || null);
 
             form.setFieldsValue({
                 name: userData.name,
                 email: userData.email,
                 role: userData.role,
                 roleScope: userData.roleScope,
-                workspaceId: userData.workspaceId
+                workspaceId: userData.workspaceId,
             });
         } catch (error) {
             console.error('Failed to fetch profile:', error);
@@ -177,6 +193,43 @@ const ProfileModal = ({ visible, onCancel }) => {
 
                     {/* Right Side - Form Fields */}
                     <div style={{ flex: 1, padding: '24px 32px' }}>
+                        <div
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: '12px',
+                                padding: '12px 14px',
+                                marginBottom: '18px',
+                                borderRadius: '12px',
+                                background: '#F8FAFC',
+                                border: '1px solid #E2E8F0'
+                            }}
+                        >
+                            <div>
+                                <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748B', marginBottom: '4px' }}>
+                                    Current Plan
+                                </div>
+                                <div style={{ fontSize: '16px', fontWeight: 800, color: '#1E293B' }}>
+                                    {subscriptionStatus?.planType ? formatPlanLabel(subscriptionStatus.planType) : 'No Active Plan'}
+                                </div>
+                            </div>
+                            <Tag
+                                color={subscriptionStatus?.planType === 'pro' ? 'processing' : subscriptionStatus?.planType === 'starter' ? 'blue' : 'default'}
+                                style={{
+                                    margin: 0,
+                                    borderRadius: '999px',
+                                    padding: '4px 10px',
+                                    fontWeight: 700,
+                                    textTransform: 'uppercase',
+                                    fontSize: '11px',
+                                    letterSpacing: '0.04em'
+                                }}
+                            >
+                                {subscriptionStatus?.planType ? formatPlanLabel(subscriptionStatus.planType) : 'None'}
+                            </Tag>
+                        </div>
+
                         <Form
                             form={form}
                             layout="vertical"

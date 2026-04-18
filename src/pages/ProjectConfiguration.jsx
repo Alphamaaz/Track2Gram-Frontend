@@ -14,6 +14,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import projectService from '../services/project';
 import landingPageService from '../services/landingPage';
+import settingsService from '../services/settings';
 import { BASE_DOMAIN, APP_DOMAIN_SUFFIX } from '../config';
 
 const { Title, Text, Paragraph } = Typography;
@@ -27,6 +28,7 @@ const ProjectConfiguration = () => {
     const { message, modal } = App.useApp();
     const [loading, setLoading] = useState(false);
     const [templates, setTemplates] = useState([]);
+    const [subscription, setSubscription] = useState(null);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -72,9 +74,38 @@ const ProjectConfiguration = () => {
             }
         };
 
+        const fetchSubscription = async () => {
+            try {
+                const response = await settingsService.getSubscriptionStatus();
+                setSubscription(response || null);
+                if ((!id || id === 'new') && response?.planType === 'starter') {
+                    const defaultPlatform =
+                        response?.activeTool === 'meta_tracker'
+                            ? 'meta'
+                            : response?.activeTool === 'google_tracker'
+                                ? 'google'
+                                : null;
+                    if (defaultPlatform) {
+                        setFormData((prev) => ({ ...prev, adPlatforms: [defaultPlatform] }));
+                    }
+                }
+            } catch {
+                console.error('Failed to fetch subscription status');
+            }
+        };
+
         fetchTemplates();
         fetchProject();
+        fetchSubscription();
     }, [id, message]);
+
+    const allowedStarterPlatform =
+        subscription?.planType === 'starter'
+            ? (subscription?.activeTool === 'meta_tracker' ? 'meta' : subscription?.activeTool === 'google_tracker' ? 'google' : null)
+            : null;
+
+    const isGoogleDisabled = allowedStarterPlatform === 'meta';
+    const isMetaDisabled = allowedStarterPlatform === 'google';
 
     const handleSave = async () => {
         if (!formData.name) return message.error('Project Name is required');
@@ -143,17 +174,18 @@ const ProjectConfiguration = () => {
         fontSize: '14px'
     };
 
-    const platformCardStyle = (isActive) => ({
+    const platformCardStyle = (isActive, isDisabled = false) => ({
         padding: '16px',
         borderRadius: '8px',
         border: isActive ? '2px solid #084b8a' : '1px solid #d9d9d9',
         background: isActive ? '#f0f7ff' : '#fff',
-        cursor: 'pointer',
+        cursor: isDisabled ? 'not-allowed' : 'pointer',
         transition: 'all 0.3s ease',
         display: 'flex',
         alignItems: 'center',
         gap: '12px',
-        width: '100%'
+        width: '100%',
+        opacity: isDisabled ? 0.6 : 1,
     });
 
     return (
@@ -205,41 +237,52 @@ const ProjectConfiguration = () => {
                             <Row gutter={16}>
                                 <Col span={12}>
                                     <div
-                                        style={platformCardStyle(formData.adPlatforms.includes('google'))}
+                                        style={platformCardStyle(formData.adPlatforms.includes('google'), isGoogleDisabled)}
                                         onClick={() => {
+                                            if (isGoogleDisabled) return;
                                             const platforms = formData.adPlatforms.includes('google')
                                                 ? formData.adPlatforms.filter(p => p !== 'google')
                                                 : [...formData.adPlatforms, 'google'];
                                             setFormData({ ...formData, adPlatforms: platforms });
                                         }}
+                                        aria-disabled={isGoogleDisabled}
                                     >
                                         <GoogleOutlined style={{ fontSize: '24px', color: '#4285F4' }} />
                                         <div style={{ flex: 1 }}>
                                             <Text strong style={{ display: 'block' }}>Google Ads</Text>
                                             <Text type="secondary" style={{ fontSize: '12px' }}>Search & Display</Text>
                                         </div>
+                                        {isGoogleDisabled && <Tag color="default">Locked by Starter Plan</Tag>}
                                         {formData.adPlatforms.includes('google') && <CheckCircleFilled style={{ color: '#084b8a' }} />}
                                     </div>
                                 </Col>
                                 <Col span={12}>
                                     <div
-                                        style={platformCardStyle(formData.adPlatforms.includes('meta'))}
+                                        style={platformCardStyle(formData.adPlatforms.includes('meta'), isMetaDisabled)}
                                         onClick={() => {
+                                            if (isMetaDisabled) return;
                                             const platforms = formData.adPlatforms.includes('meta')
                                                 ? formData.adPlatforms.filter(p => p !== 'meta')
                                                 : [...formData.adPlatforms, 'meta'];
                                             setFormData({ ...formData, adPlatforms: platforms });
                                         }}
+                                        aria-disabled={isMetaDisabled}
                                     >
                                         <FacebookOutlined style={{ fontSize: '24px', color: '#0668E1' }} />
                                         <div style={{ flex: 1 }}>
                                             <Text strong style={{ display: 'block' }}>Meta Ads</Text>
                                             <Text type="secondary" style={{ fontSize: '12px' }}>Facebook & Insta</Text>
                                         </div>
+                                        {isMetaDisabled && <Tag color="default">Locked by Starter Plan</Tag>}
                                         {formData.adPlatforms.includes('meta') && <CheckCircleFilled style={{ color: '#084b8a' }} />}
                                     </div>
                                 </Col>
                             </Row>
+                            {allowedStarterPlatform && (
+                                <Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
+                                    Your starter subscription currently allows only the {allowedStarterPlatform === 'google' ? 'Google Tracker' : 'Meta Tracker'}.
+                                </Text>
+                            )}
                         </div>
                     </Card>
 
