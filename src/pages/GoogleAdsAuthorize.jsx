@@ -26,7 +26,17 @@ export default function GoogleAdsAuthorize() {
             setError("");
 
             try {
-                await googleAdsService.callback(authCode);
+                const isAddAccountFlow = sessionStorage.getItem("google_add_account_flow") === "1";
+                const response = await googleAdsService.callback(authCode, {
+                    createPendingConnection: isAddAccountFlow,
+                    label: isAddAccountFlow ? "Pending Google Ads Account" : undefined,
+                });
+                if (isAddAccountFlow) {
+                    sessionStorage.setItem("google_add_account_oauth_done", "1");
+                    if (response?.data?.googleConnectionId) {
+                        sessionStorage.setItem("google_pending_connection_id", response.data.googleConnectionId);
+                    }
+                }
                 // Redirect back to the Google Ads integration page after success
                 navigate("/integrations/google-ads", { replace: true });
             } catch (err) {

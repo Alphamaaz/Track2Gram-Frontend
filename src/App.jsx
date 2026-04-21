@@ -12,6 +12,7 @@ import LandingPageEditor from './pages/LandingPageEditor'
 import MetaAdsIntegration from './pages/MetaAdsIntegration'
 import GoogleAdsIntegration from './pages/GoogleAdsIntegration'
 import TelegramIntegration from './pages/TelegramIntegration'
+import ConnectionManagement from './pages/ConnectionManagement'
 import LeadManagement from './pages/LeadManagement'
 import RetentionCampaigns from './pages/RetentionCampaigns'
 import Analytics from './pages/Analytics'
@@ -122,6 +123,7 @@ function App() {
                             <Route path="integrations/meta-ads" element={<MetaAdsIntegration />} />
                             <Route path="integrations/google-ads" element={<GoogleAdsIntegration />} />
                             <Route path="integrations/telegram" element={<TelegramIntegration />} />
+                            <Route path="integrations/accounts" element={<ConnectionManagement />} />
                             <Route path="lead-management" element={<LeadManagement />} />
                             <Route path="analytics" element={<Analytics />} />
                             <Route path="retention" element={<RetentionCampaigns />} />

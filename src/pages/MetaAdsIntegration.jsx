@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Typography, Input, Button, Card, Space, Form, Skeleton, App, Row, Col, Alert, Tooltip } from 'antd';
+import { Typography, Input, Button, Card, Space, Form, Skeleton, App, Row, Col, Alert, Tooltip, Table, Tag } from 'antd';
 import { SaveOutlined, LinkOutlined, RocketOutlined, CheckCircleFilled, SyncOutlined, InfoCircleOutlined, GithubOutlined } from '@ant-design/icons';
 import { settingsService } from '../services/settings';
 import { metaAdsService } from '../services/metaAds';
+import connectionService from '../services/connections';
 
 const { Title, Text } = Typography;
 
@@ -16,6 +17,17 @@ const MetaAdsIntegration = () => {
     const [allSettings, setAllSettings] = useState({});
     const [statusData, setStatusData] = useState(null);
     const [statusLoading, setStatusLoading] = useState(false);
+    const [metaConnections, setMetaConnections] = useState([]);
+    const [showSetupForm, setShowSetupForm] = useState(false);
+
+    const fetchMetaConnections = useCallback(async () => {
+        try {
+            const response = await connectionService.getConnections('meta');
+            setMetaConnections(Array.isArray(response?.data) ? response.data : []);
+        } catch (error) {
+            console.error('Failed to fetch Meta connections:', error);
+        }
+    }, []);
 
     const fetchStatus = useCallback(async () => {
         try {
@@ -42,15 +54,14 @@ const MetaAdsIntegration = () => {
             setIntegrationScope(data.scope || 'platform');
             setWorkspaceId(data.workspaceId || null);
 
-            // Also fetch technical status
-            fetchStatus();
+            await Promise.all([fetchStatus(), fetchMetaConnections()]);
         } catch (error) {
             console.error('Failed to fetch settings:', error);
             if (!silent) message.error(error.message || 'Failed to load settings');
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [form, message, fetchStatus]);
+    }, [form, message, fetchStatus, fetchMetaConnections]);
 
     useEffect(() => {
         fetchSettings(false); // Initial load with skeleton
@@ -67,6 +78,17 @@ const MetaAdsIntegration = () => {
                 workspaceId: workspaceId
             };
             await settingsService.updateSettings(payload);
+            await connectionService.createConnection('meta', {
+                label: values.META_AD_ACCOUNT_ID ? `Meta ${values.META_AD_ACCOUNT_ID}` : 'Meta Ads Account',
+                adAccountId: values.META_AD_ACCOUNT_ID,
+                pixelId: values.META_PIXEL_ID,
+                accessToken: values.META_ACCESS_TOKEN,
+                eventName: values.META_EVENT_NAME,
+                testEventCode: values.META_TEST_EVENT_CODE,
+                isDefault: true,
+            }).catch((error) => {
+                console.warn('Meta connection create skipped:', error?.message || error);
+            });
 
             // Refresh status immediately and wait for it to show real progress
             const status = await metaAdsService.getStatus();
@@ -82,6 +104,7 @@ const MetaAdsIntegration = () => {
             }
 
             // Silent refresh of form data in background
+            setShowSetupForm(false);
             fetchSettings(true);
         } catch (error) {
             console.error('Failed to update settings:', error);
@@ -145,6 +168,46 @@ const MetaAdsIntegration = () => {
         color: '#fff',
     };
 
+    const showMetaForm = showSetupForm || metaConnections.length === 0;
+    const metaColumns = [
+        {
+            title: 'Account',
+            key: 'account',
+            render: (_, record) => (
+                <Space direction="vertical" size={2}>
+                    <Space wrap>
+                        <Text strong>{record.label || 'Meta Ads Account'}</Text>
+                        {record.isDefault && <Tag color="blue">Default</Tag>}
+                    </Space>
+                    <Text type="secondary" style={{ fontSize: 12 }}>act_{record.adAccountId || 'N/A'}</Text>
+                </Space>
+            ),
+        },
+        {
+            title: 'Pixel',
+            dataIndex: 'pixelId',
+            key: 'pixelId',
+            render: value => value || 'N/A',
+        },
+        {
+            title: 'Event',
+            dataIndex: 'eventName',
+            key: 'eventName',
+            render: value => <Tag color="blue">{value || 'Subscribe'}</Tag>,
+        },
+        {
+            title: 'Status',
+            dataIndex: 'status',
+            key: 'status',
+            width: 120,
+            render: value => (
+                <Tag color={value === 'active' ? 'green' : value === 'inactive' ? 'orange' : 'red'}>
+                    {String(value || 'active').toUpperCase()}
+                </Tag>
+            ),
+        },
+    ];
+
     return (
         <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', minHeight: '100vh', background: '#f8fafc' }}>
             {/* Header Section */}
@@ -157,8 +220,19 @@ const MetaAdsIntegration = () => {
                         Configure Meta Pixel and Conversion API (CAPI) for advanced event tracking
                     </Text>
                 </div>
+                <Space wrap>
+                    {showSetupForm && metaConnections.length > 0 && (
+                        <Button onClick={() => setShowSetupForm(false)}>
+                            Cancel Setup
+                        </Button>
+                    )}
+                    <Button type="primary" icon={<LinkOutlined />} onClick={() => setShowSetupForm(true)}>
+                        Add Meta Account
+                    </Button>
+                </Space>
             </div>
 
+            {showMetaForm && (
             <Form
                 form={form}
                 layout="vertical"
@@ -327,6 +401,28 @@ const MetaAdsIntegration = () => {
                     </div>
                 </div>
             </Form>
+            )}
+
+            <Card
+                style={{
+                    borderRadius: '20px',
+                    border: '1px solid rgba(226, 232, 240, 0.7)',
+                    margin: showMetaForm ? '24px auto 0' : '0 auto',
+                    maxWidth: '1100px',
+                    boxShadow: '0 4px 20px -5px rgba(0, 0, 0, 0.05)',
+                }}
+                title="Connected Meta Accounts"
+                extra={<Button onClick={fetchMetaConnections} icon={<SyncOutlined />}>Refresh</Button>}
+            >
+                <Table
+                    rowKey="id"
+                    dataSource={metaConnections}
+                    columns={metaColumns}
+                    scroll={{ x: 760 }}
+                    pagination={{ pageSize: 6, hideOnSinglePage: true }}
+                    locale={{ emptyText: 'No Meta accounts added yet' }}
+                />
+            </Card>
 
             <style>
                 {`

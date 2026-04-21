@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Form, Input, Button, App, Divider, Skeleton, Tag } from 'antd';
-import { UserOutlined, MailOutlined, GlobalOutlined, LogoutOutlined } from '@ant-design/icons';
+import { UserOutlined, MailOutlined, LogoutOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import authService from '../services/auth';
 import settingsService from '../services/settings';

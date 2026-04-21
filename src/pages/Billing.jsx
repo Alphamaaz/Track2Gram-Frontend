@@ -273,7 +273,7 @@ const Billing = () => {
       <div style={{ textAlign: 'center', marginBottom: 28 }}>
         <Title level={2} style={{ marginBottom: 8 }}>Subscription</Title>
         <Paragraph type="secondary" style={{ fontSize: 16, marginBottom: 0 }}>
-          Choose a plan, then select whether you want to pay in PKR or crypto.
+          Choose a plan and complete payment with BEP20 (USDTBSC).
         </Paragraph>
       </div>
 

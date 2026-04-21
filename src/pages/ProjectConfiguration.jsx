@@ -15,6 +15,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import projectService from '../services/project';
 import landingPageService from '../services/landingPage';
 import settingsService from '../services/settings';
+import connectionService from '../services/connections';
 import { BASE_DOMAIN, APP_DOMAIN_SUFFIX } from '../config';
 
 const { Title, Text, Paragraph } = Typography;
@@ -29,6 +30,7 @@ const ProjectConfiguration = () => {
     const [loading, setLoading] = useState(false);
     const [templates, setTemplates] = useState([]);
     const [subscription, setSubscription] = useState(null);
+    const [connections, setConnections] = useState({ google: [], meta: [], telegram: [] });
 
     // Form State
     const [formData, setFormData] = useState({
@@ -40,6 +42,10 @@ const ProjectConfiguration = () => {
         pageTitle: '',
         customDomain: '',
         externalUrl: ''
+        ,
+        googleConnectionId: null,
+        metaConnectionId: null,
+        telegramConnectionId: null
     });
     const [domainType, setDomainType] = useState('subdomain');
 
@@ -94,9 +100,26 @@ const ProjectConfiguration = () => {
             }
         };
 
+        const fetchConnections = async () => {
+            try {
+                const response = await connectionService.getConnections('all');
+                if (response.success) {
+                    const data = response.data || {};
+                    setConnections({
+                        google: data.google || [],
+                        meta: data.meta || [],
+                        telegram: data.telegram || [],
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to fetch connections', error);
+            }
+        };
+
         fetchTemplates();
         fetchProject();
         fetchSubscription();
+        fetchConnections();
     }, [id, message]);
 
     const allowedStarterPlatform =
@@ -107,10 +130,35 @@ const ProjectConfiguration = () => {
     const isGoogleDisabled = allowedStarterPlatform === 'meta';
     const isMetaDisabled = allowedStarterPlatform === 'google';
 
+    useEffect(() => {
+        setFormData((prev) => {
+            const next = { ...prev };
+            if (!next.googleConnectionId && next.adPlatforms?.includes('google') && connections.google.length === 1) {
+                next.googleConnectionId = connections.google[0].id;
+            }
+            if (!next.metaConnectionId && next.adPlatforms?.includes('meta') && connections.meta.length === 1) {
+                next.metaConnectionId = connections.meta[0].id;
+            }
+            if (!next.telegramConnectionId && connections.telegram.length === 1) {
+                next.telegramConnectionId = connections.telegram[0].id;
+            }
+            return next;
+        });
+    }, [connections]);
+
     const handleSave = async () => {
         if (!formData.name) return message.error('Project Name is required');
         if (formData.landingPageSource === 'internal' && !formData.landingPageTemplateId) {
             return message.error('Please select a landing page template');
+        }
+        if (formData.adPlatforms.includes('google') && !formData.googleConnectionId && connections.google.length > 0) {
+            return message.error('Please select the Google Ads account for this project');
+        }
+        if (formData.adPlatforms.includes('meta') && !formData.metaConnectionId && connections.meta.length > 0) {
+            return message.error('Please select the Meta account/pixel for this project');
+        }
+        if (!formData.telegramConnectionId && connections.telegram.length > 0) {
+            return message.error('Please select the Telegram bot/channel for this project');
         }
 
         setLoading(true);
@@ -172,6 +220,19 @@ const ProjectConfiguration = () => {
         fontWeight: 600,
         color: '#1f1f1f',
         fontSize: '14px'
+    };
+
+    const connectionFieldStyle = {
+        display: 'flex',
+        flexDirection: 'column',
+        alignSelf: 'flex-start',
+    };
+
+    const connectionHelpStyle = {
+        display: 'block',
+        fontSize: 12,
+        lineHeight: 1.5,
+        marginTop: 8,
     };
 
     const platformCardStyle = (isActive, isDisabled = false) => ({
@@ -283,6 +344,77 @@ const ProjectConfiguration = () => {
                                     Your starter subscription currently allows only the {allowedStarterPlatform === 'google' ? 'Google Tracker' : 'Meta Tracker'}.
                                 </Text>
                             )}
+                            <Divider style={{ margin: '20px 0' }} />
+                            <Row gutter={[16, 16]} align="top">
+                                {formData.adPlatforms.includes('google') && (
+                                    <Col xs={24} md={12} style={connectionFieldStyle}>
+                                        <label style={labelStyle}>Google Ads Account</label>
+                                        <Select
+                                            placeholder={connections.google.length ? 'Select Google Ads account' : 'No Google connection found'}
+                                            style={{ width: '100%', height: '44px' }}
+                                            value={formData.googleConnectionId || undefined}
+                                            onChange={value => setFormData({ ...formData, googleConnectionId: value })}
+                                            disabled={!connections.google.length}
+                                        >
+                                            {connections.google.map(item => (
+                                                <Option key={item.id} value={item.id}>
+                                                    {item.label || item.customerId || 'Google Ads Account'}{item.customerId ? ` (${item.customerId})` : ''}
+                                                </Option>
+                                            ))}
+                                        </Select>
+                                        {!connections.google.length && (
+                                            <Text type="secondary" style={connectionHelpStyle}>
+                                                Connect a Google Ads account from Integrations, or the workspace fallback will be used.
+                                            </Text>
+                                        )}
+                                    </Col>
+                                )}
+                                {formData.adPlatforms.includes('meta') && (
+                                    <Col xs={24} md={12} style={connectionFieldStyle}>
+                                        <label style={labelStyle}>Meta Pixel / Ad Account</label>
+                                        <Select
+                                            placeholder={connections.meta.length ? 'Select Meta connection' : 'No Meta connection found'}
+                                            style={{ width: '100%', height: '44px' }}
+                                            value={formData.metaConnectionId || undefined}
+                                            onChange={value => setFormData({ ...formData, metaConnectionId: value })}
+                                            disabled={!connections.meta.length}
+                                        >
+                                            {connections.meta.map(item => (
+                                                <Option key={item.id} value={item.id}>
+                                                    {item.label || item.pixelId || 'Meta Connection'}{item.eventName ? ` • ${item.eventName}` : ''}
+                                                </Option>
+                                            ))}
+                                        </Select>
+                                        {!connections.meta.length && (
+                                            <Text type="secondary" style={connectionHelpStyle}>
+                                                Connect a Meta pixel/account from Integrations, or the workspace fallback will be used.
+                                            </Text>
+                                        )}
+                                    </Col>
+                                )}
+                                <Col xs={24} md={12} style={connectionFieldStyle}>
+                                    <label style={labelStyle}>Telegram Bot / Channel</label>
+                                    <Select
+                                        placeholder={connections.telegram.length ? 'Select Telegram channel' : 'No Telegram connection found'}
+                                        style={{ width: '100%', height: '44px' }}
+                                        value={formData.telegramConnectionId || undefined}
+                                        onChange={value => setFormData({ ...formData, telegramConnectionId: value })}
+                                        disabled={!connections.telegram.length}
+                                    >
+                                        {connections.telegram.map(item => (
+                                            <Option key={item.id} value={item.id}>
+                                                {item.label || item.channelTitle || item.channelId || 'Telegram Channel'}
+                                                {item.botUsername ? ` • @${item.botUsername}` : ''}
+                                            </Option>
+                                        ))}
+                                    </Select>
+                                    {!connections.telegram.length && (
+                                        <Text type="secondary" style={connectionHelpStyle}>
+                                            Connect a Telegram bot/channel from Integrations, or the workspace fallback will be used.
+                                        </Text>
+                                    )}
+                                </Col>
+                            </Row>
                         </div>
                     </Card>
 
