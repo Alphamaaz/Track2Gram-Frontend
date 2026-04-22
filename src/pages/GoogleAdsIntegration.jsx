@@ -1,16 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Typography, Button, Form, Input, Skeleton, App, Row, Col, Select, Alert, Space, Card } from 'antd';
+import { Typography, Button, Form, Input, Skeleton, App, Row, Col, Select, Alert, Space, Card, Table, Tag, Modal, Popconfirm, Switch } from 'antd';
 import { GoogleOutlined, LoadingOutlined, SyncOutlined, CheckCircleFilled, ApiOutlined, ArrowRightOutlined, ArrowLeftOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { settingsService } from '../services/settings';
 import { googleAdsService } from '../services/googleAds';
+import connectionService from '../services/connections';
 
 const { Title, Text } = Typography;
 
 const GoogleAdsIntegration = () => {
     const { message } = App.useApp();
     const [form] = Form.useForm();
+    const [accountForm] = Form.useForm();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [accountSaving, setAccountSaving] = useState(false);
+    const [accountsLoading, setAccountsLoading] = useState(false);
     const [connecting, setConnecting] = useState(false);
     const [disconnecting, setDisconnecting] = useState(false);
     const [syncing, setSyncing] = useState(false);
@@ -21,6 +25,26 @@ const GoogleAdsIntegration = () => {
     const [conversionActions, setConversionActions] = useState([]);
     const [loadingActions, setLoadingActions] = useState(false);
     const [integrationError, setIntegrationError] = useState(null);
+    const [googleConnections, setGoogleConnections] = useState([]);
+    const [addAccountFlow, setAddAccountFlow] = useState(() => {
+        if (typeof sessionStorage === 'undefined') return false;
+        return sessionStorage.getItem('google_add_account_flow') === '1';
+    });
+    const [accountModalOpen, setAccountModalOpen] = useState(false);
+    const [editingAccount, setEditingAccount] = useState(null);
+
+    const fetchGoogleConnections = useCallback(async () => {
+        try {
+            setAccountsLoading(true);
+            const response = await connectionService.getConnections('google');
+            setGoogleConnections(Array.isArray(response?.data) ? response.data : []);
+        } catch (error) {
+            console.error('Failed to fetch Google connections:', error);
+            message.error(error?.message || 'Failed to load Google accounts');
+        } finally {
+            setAccountsLoading(false);
+        }
+    }, [message]);
 
     const fetchStatus = useCallback(async () => {
         try {
@@ -28,9 +52,16 @@ const GoogleAdsIntegration = () => {
             const status = await googleAdsService.getStatus();
             setConnectionStatus(status.data);
 
+            // If adding another account, the existing workspace OAuth must not
+            // skip the new account authorization step.
+            const isAddingAccount = sessionStorage.getItem('google_add_account_flow') === '1';
+            const addAccountOAuthDone = sessionStorage.getItem('google_add_account_oauth_done') === '1';
+
             // If connected, determine the current step based on configuration
             if (status.data.isConnected) {
-                if (status.data.customerId) {
+                if (isAddingAccount) {
+                    setCurrentStep(addAccountOAuthDone ? 2 : 1);
+                } else if (status.data.customerId) {
                     // Check if conversion action is set in settings
                     const data = await settingsService.getSettings();
                     if (data.GOOGLE_ADS_CONVERSION_ACTION_ID) {
@@ -61,7 +92,7 @@ const GoogleAdsIntegration = () => {
             setLoading(true);
             const data = await settingsService.getSettings();
             setSettings(data);
-            await fetchStatus();
+            await Promise.all([fetchStatus(), fetchGoogleConnections()]);
         } catch (error) {
             console.error('Failed to fetch settings:', error);
             const errorMessage = typeof error === 'string' ? error : (error?.message || 'Failed to load settings');
@@ -69,17 +100,29 @@ const GoogleAdsIntegration = () => {
         } finally {
             setLoading(false);
         }
-    }, [fetchStatus, message]);
+    }, [fetchStatus, fetchGoogleConnections, message]);
 
     useEffect(() => {
         if (!loading && settings) {
-            form.setFieldsValue(settings);
+            const isAddingAccount = sessionStorage.getItem('google_add_account_flow') === '1';
+            form.setFieldsValue(isAddingAccount ? {
+                ...(settings || {}),
+                GOOGLE_ADS_CUSTOMER_ID: '',
+                GOOGLE_ADS_MCC_ID: '',
+                GOOGLE_ADS_CONVERSION_ACTION_ID: undefined,
+            } : settings);
         }
     }, [loading, settings, form]);
 
     useEffect(() => {
         fetchSettings();
     }, [fetchSettings]);
+
+    useEffect(() => {
+        if (!loading && sessionStorage.getItem('google_add_account_flow') === '1') {
+            setAddAccountFlow(true);
+        }
+    }, [loading]);
 
     const fetchConversionActions = useCallback(async (customerId) => {
         try {
@@ -109,6 +152,10 @@ const GoogleAdsIntegration = () => {
         try {
             setConnecting(true);
             setIntegrationError(null);
+            sessionStorage.setItem('google_add_account_flow', '1');
+            sessionStorage.removeItem('google_add_account_oauth_done');
+            sessionStorage.removeItem('google_pending_connection_id');
+            setAddAccountFlow(true);
             const response = await googleAdsService.connect();
             if (response.success && response.data.authUrl) {
                 window.location.href = response.data.authUrl;
@@ -185,9 +232,44 @@ const GoogleAdsIntegration = () => {
         try {
             setSaving(true);
             await settingsService.updateSettings(values);
+
+            if (addAccountFlow && currentStep === 2) {
+                const customerId = values.GOOGLE_ADS_CUSTOMER_ID;
+                setSettings(prev => ({ ...(prev || {}), ...values }));
+                setConnectionStatus(prev => ({ ...prev, isConnected: true, customerId }));
+                setCurrentStep(3);
+                await fetchConversionActions(customerId);
+                message.success('Google Ads customer saved. Select the conversion action next.');
+                return;
+            }
+
+            const pendingConnectionId = sessionStorage.getItem('google_pending_connection_id');
+            const connectionPayload = {
+                label: values.GOOGLE_ADS_CUSTOMER_ID ? `Google Ads ${values.GOOGLE_ADS_CUSTOMER_ID}` : 'Google Ads Account',
+                customerId: values.GOOGLE_ADS_CUSTOMER_ID,
+                managerCustomerId: values.GOOGLE_ADS_MCC_ID,
+                conversionActionId: values.GOOGLE_ADS_CONVERSION_ACTION_ID,
+                status: 'active',
+                isDefault: googleConnections.length === 0,
+            };
+
+            const saveConnection = pendingConnectionId
+                ? connectionService.updateConnection('google', pendingConnectionId, connectionPayload)
+                : connectionService.createConnection('google', connectionPayload);
+
+            await saveConnection.catch((error) => {
+                console.warn('Google connection create skipped:', error?.message || error);
+            });
+
             message.success('Configuration saved successfully');
             if (currentStep < 4) {
                 setCurrentStep(prev => prev + 1);
+            }
+            if (addAccountFlow && currentStep >= 3) {
+                sessionStorage.removeItem('google_add_account_flow');
+                sessionStorage.removeItem('google_add_account_oauth_done');
+                sessionStorage.removeItem('google_pending_connection_id');
+                setAddAccountFlow(false);
             }
             fetchSettings();
         } catch (error) {
@@ -195,6 +277,115 @@ const GoogleAdsIntegration = () => {
             message.error(error?.message || 'Failed to update settings');
         } finally {
             setSaving(false);
+        }
+    };
+
+    const startAddAccountFlow = () => {
+        sessionStorage.setItem('google_add_account_flow', '1');
+        sessionStorage.removeItem('google_add_account_oauth_done');
+        sessionStorage.removeItem('google_pending_connection_id');
+        setAddAccountFlow(true);
+        setIntegrationError(null);
+        setSyncResult(null);
+        setConversionActions([]);
+        form.setFieldsValue({
+            ...(settings || {}),
+            GOOGLE_ADS_CUSTOMER_ID: '',
+            GOOGLE_ADS_MCC_ID: '',
+            GOOGLE_ADS_CONVERSION_ACTION_ID: undefined,
+        });
+        setCurrentStep(1);
+    };
+
+    const cancelAddAccountFlow = () => {
+        sessionStorage.removeItem('google_add_account_flow');
+        sessionStorage.removeItem('google_add_account_oauth_done');
+        sessionStorage.removeItem('google_pending_connection_id');
+        setAddAccountFlow(false);
+        setIntegrationError(null);
+        setConversionActions([]);
+        fetchSettings();
+    };
+
+    const openAccountModal = (account = null) => {
+        setEditingAccount(account);
+        accountForm.resetFields();
+        accountForm.setFieldsValue({
+            label: account?.label || '',
+            customerId: account?.customerId || '',
+            managerCustomerId: account?.managerCustomerId || '',
+            conversionActionId: account?.conversionActionId || '',
+            status: account?.status || 'active',
+            isDefault: account ? Boolean(account.isDefault) : googleConnections.length === 0,
+        });
+        setAccountModalOpen(true);
+    };
+
+    const closeAccountModal = () => {
+        setAccountModalOpen(false);
+        setEditingAccount(null);
+        accountForm.resetFields();
+    };
+
+    const handleAccountSave = async () => {
+        try {
+            const values = await accountForm.validateFields();
+            setAccountSaving(true);
+            const payload = {
+                label: values.label,
+                customerId: values.customerId,
+                managerCustomerId: values.managerCustomerId,
+                conversionActionId: values.conversionActionId,
+                status: values.status || 'active',
+                isDefault: Boolean(values.isDefault),
+            };
+
+            if (editingAccount) {
+                await connectionService.updateConnection('google', editingAccount.id, payload);
+                message.success('Google account updated');
+            } else {
+                await connectionService.createConnection('google', payload);
+                message.success('Google account added');
+            }
+
+            closeAccountModal();
+            await fetchGoogleConnections();
+        } catch (error) {
+            if (error?.errorFields) return;
+            message.error(error?.message || 'Failed to save Google account');
+        } finally {
+            setAccountSaving(false);
+        }
+    };
+
+    const handleSetDefaultAccount = async (account) => {
+        try {
+            await connectionService.updateConnection('google', account.id, { isDefault: true });
+            message.success('Default Google account updated');
+            await fetchGoogleConnections();
+        } catch (error) {
+            message.error(error?.message || 'Failed to update default Google account');
+        }
+    };
+
+    const handleToggleAccountStatus = async (account) => {
+        try {
+            const nextStatus = account.status === 'active' ? 'inactive' : 'active';
+            await connectionService.updateConnection('google', account.id, { status: nextStatus });
+            message.success(`Google account marked ${nextStatus}`);
+            await fetchGoogleConnections();
+        } catch (error) {
+            message.error(error?.message || 'Failed to update Google account status');
+        }
+    };
+
+    const handleDeleteAccount = async (account) => {
+        try {
+            await connectionService.deleteConnection('google', account.id);
+            message.success('Google account deleted');
+            await fetchGoogleConnections();
+        } catch (error) {
+            message.error(error?.message || 'Failed to delete Google account');
         }
     };
 
@@ -214,7 +405,14 @@ const GoogleAdsIntegration = () => {
     ];
 
     const statusAlerts = [];
-    if (!connectionStatus.isConnected) {
+    if (addAccountFlow && currentStep === 1) {
+        statusAlerts.push({
+            type: 'info',
+            message: 'Authorize the new Google account',
+            description: 'Existing Google Ads accounts will not be reused for this setup. Continue with Google OAuth to add another account.',
+        });
+    }
+    if (!connectionStatus.isConnected && !addAccountFlow) {
         statusAlerts.push({
             type: 'warning',
             message: 'Google Ads is not connected',
@@ -242,7 +440,7 @@ const GoogleAdsIntegration = () => {
             description: connectionStatus.syncError,
         });
     }
-    if (connectionStatus.isConnected && connectionStatus.customerId && connectionStatus.syncStatus !== 'failed') {
+    if (connectionStatus.isConnected && connectionStatus.customerId && connectionStatus.syncStatus !== 'failed' && !addAccountFlow) {
         statusAlerts.push({
             type: 'success',
             message: 'Google Ads connection looks healthy',
@@ -265,7 +463,7 @@ const GoogleAdsIntegration = () => {
                 <Text type="secondary">Authenticate with Google to allow Track Bridge to access your Ads data.</Text>
             </div>
 
-            {connectionStatus.isConnected ? (
+            {connectionStatus.isConnected && !addAccountFlow ? (
                 <Alert
                     message="Account Connected"
                     description="Your Google account is already authorized. You can proceed to configuration."
@@ -296,7 +494,7 @@ const GoogleAdsIntegration = () => {
                         fontSize: '16px', fontWeight: 600, background: '#084b8a'
                     }}
                 >
-                    {connecting ? 'Connecting...' : 'Connect Google Ads'}
+                    {connecting ? 'Connecting...' : (addAccountFlow ? 'Authorize Google Account' : 'Connect Google Ads')}
                 </Button>
             )}
         </div>
@@ -435,17 +633,104 @@ const GoogleAdsIntegration = () => {
         </div>
     )
 
+    const googleAccountColumns = [
+        {
+            title: 'Account',
+            key: 'account',
+            render: (_, record) => (
+                <Space direction="vertical" size={2}>
+                    <Space wrap>
+                        <Text strong>{record.label || 'Google Ads Account'}</Text>
+                        {record.isDefault && <Tag color="blue">Default</Tag>}
+                    </Space>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                        Customer ID: {record.customerId || 'N/A'}
+                    </Text>
+                </Space>
+            ),
+        },
+        {
+            title: 'MCC',
+            dataIndex: 'managerCustomerId',
+            key: 'managerCustomerId',
+            render: value => value || 'None',
+        },
+        {
+            title: 'Conversion Action',
+            dataIndex: 'conversionActionId',
+            key: 'conversionActionId',
+            ellipsis: true,
+            render: value => value || 'Workspace default',
+        },
+        {
+            title: 'Status',
+            dataIndex: 'status',
+            key: 'status',
+            width: 110,
+            render: value => (
+                <Tag color={value === 'active' ? 'green' : ['inactive', 'pending'].includes(value) ? 'orange' : 'red'}>
+                    {String(value || 'active').toUpperCase()}
+                </Tag>
+            ),
+        },
+        {
+            title: 'Actions',
+            key: 'actions',
+            width: 300,
+            render: (_, record) => (
+                <Space wrap>
+                    <Button size="small" onClick={() => openAccountModal(record)}>
+                        Edit
+                    </Button>
+                    {!record.isDefault && (
+                        <Button size="small" onClick={() => handleSetDefaultAccount(record)}>
+                            Set Default
+                        </Button>
+                    )}
+                    <Button size="small" onClick={() => handleToggleAccountStatus(record)}>
+                        {record.status === 'active' ? 'Disable' : 'Enable'}
+                    </Button>
+                    <Popconfirm
+                        title="Delete Google account?"
+                        description="Remove this from projects first if it is assigned."
+                        okText="Delete"
+                        okButtonProps={{ danger: true }}
+                        onConfirm={() => handleDeleteAccount(record)}
+                    >
+                        <Button size="small" danger>
+                            Delete
+                        </Button>
+                    </Popconfirm>
+                </Space>
+            ),
+        },
+    ];
+
+    const showSetupFlow = addAccountFlow || googleConnections.length === 0;
+
     return (
-        <div style={{ padding: '20px', maxWidth: '860px', margin: '0 auto', minHeight: '100vh', background: '#f8fafc' }}>
+        <div style={{ padding: '20px', maxWidth: '1100px', margin: '0 auto', minHeight: '100vh', background: '#f8fafc' }}>
             {/* Page Header */}
-            <div style={{ marginBottom: '32px' }}>
-                <Title level={2} style={{ margin: 0, fontWeight: 800, color: '#1e293b', letterSpacing: '-0.02em' }}>
-                    Google Ads Integration
-                </Title>
-                <Text type="secondary">Complete the 4-step process to connect and configure your tracking.</Text>
+            <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+                <div>
+                    <Title level={2} style={{ margin: 0, fontWeight: 800, color: '#1e293b', letterSpacing: '-0.02em' }}>
+                        Google Ads Integration
+                    </Title>
+                    <Text type="secondary">Complete the 4-step process to connect and configure your tracking.</Text>
+                </div>
+                <Space wrap>
+                    {addAccountFlow && googleConnections.length > 0 && (
+                        <Button onClick={cancelAddAccountFlow}>
+                            Cancel Setup
+                        </Button>
+                    )}
+                    <Button type="primary" icon={<ApiOutlined />} onClick={startAddAccountFlow}>
+                        Add Google Account
+                    </Button>
+                </Space>
             </div>
 
-            {statusAlerts.length > 0 && (
+            {showSetupFlow && statusAlerts.length > 0 && (
                 <Space direction="vertical" size={12} style={{ width: '100%', marginBottom: 20 }}>
                     {statusAlerts.map((alert, idx) => (
                         <Alert
@@ -459,7 +744,7 @@ const GoogleAdsIntegration = () => {
                 </Space>
             )}
 
-            {integrationError && (
+            {showSetupFlow && integrationError && (
                 <Alert
                     message="Google Ads Account Not Found"
                     description={
@@ -487,75 +772,187 @@ const GoogleAdsIntegration = () => {
                 />
             )}
 
-            {/* Stepper UI */}
-            <div className="stepper-container" style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '40px',
-                padding: '0 10px',
-                position: 'relative'
-            }}>
-                {/* Background line */}
-                <div className="connector-line" style={{
-                    position: 'absolute', top: '24px', left: '40px', right: '40px',
-                    height: '2px', background: '#e2e8f0', zIndex: 0
-                }} />
+            {showSetupFlow && (
+                <>
+                    <div className="stepper-container" style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '40px',
+                        padding: '0 10px',
+                        position: 'relative'
+                    }}>
+                        <div className="connector-line" style={{
+                            position: 'absolute', top: '24px', left: '40px', right: '40px',
+                            height: '2px', background: '#e2e8f0', zIndex: 0
+                        }} />
 
-                {steps.map((step, index) => {
-                    const stepNum = index + 1;
-                    const isActive = currentStep === stepNum;
-                    const isCompleted = currentStep > stepNum;
+                        {steps.map((step, index) => {
+                            const stepNum = index + 1;
+                            const isActive = currentStep === stepNum;
+                            const isCompleted = currentStep > stepNum;
 
-                    return (
-                        <div key={stepNum} className="step-item" style={{
-                            display: 'flex', flexDirection: 'column', alignItems: 'center',
-                            zIndex: 1, width: '25%', opacity: isActive || isCompleted ? 1 : 0.6
-                        }}>
-                            <div style={{
-                                width: '48px', height: '48px', borderRadius: '50%',
-                                background: isCompleted ? '#084b8a' : (isActive ? '#084b8a' : '#fff'),
-                                border: isCompleted ? 'none' : `2px solid ${isActive ? '#084b8a' : '#e2e8f0'}`,
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                marginBottom: '12px', transition: 'all 0.3s',
-                                boxShadow: isActive ? '0 0 0 4px rgba(8, 75, 138, 0.1)' : 'none'
-                            }}>
-                                {isCompleted
-                                    ? <CheckCircleFilled style={{ color: '#fff', fontSize: '24px' }} />
-                                    : <span style={{ color: isActive ? '#fff' : '#94a3b8', fontWeight: 700 }}>{stepNum}</span>
-                                }
-                            </div>
-                            <Text style={{ fontWeight: 700, fontSize: '12px', color: '#1e293b' }}>{step.title}</Text>
-                            <Text type="secondary" style={{ fontSize: '10px' }}>{step.desc}</Text>
-                        </div>
-                    );
-                })}
-            </div>
+                            return (
+                                <div key={stepNum} className="step-item" style={{
+                                    display: 'flex', flexDirection: 'column', alignItems: 'center',
+                                    zIndex: 1, width: '25%', opacity: isActive || isCompleted ? 1 : 0.6
+                                }}>
+                                    <div style={{
+                                        width: '48px', height: '48px', borderRadius: '50%',
+                                        background: isCompleted ? '#084b8a' : (isActive ? '#084b8a' : '#fff'),
+                                        border: isCompleted ? 'none' : `2px solid ${isActive ? '#084b8a' : '#e2e8f0'}`,
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        marginBottom: '12px', transition: 'all 0.3s',
+                                        boxShadow: isActive ? '0 0 0 4px rgba(8, 75, 138, 0.1)' : 'none'
+                                    }}>
+                                        {isCompleted
+                                            ? <CheckCircleFilled style={{ color: '#fff', fontSize: '24px' }} />
+                                            : <span style={{ color: isActive ? '#fff' : '#94a3b8', fontWeight: 700 }}>{stepNum}</span>
+                                        }
+                                    </div>
+                                    <Text style={{ fontWeight: 700, fontSize: '12px', color: '#1e293b' }}>{step.title}</Text>
+                                    <Text type="secondary" style={{ fontSize: '10px' }}>{step.desc}</Text>
+                                </div>
+                            );
+                        })}
+                    </div>
 
-            {/* Step Card */}
-            <div style={{
-                background: '#fff', borderRadius: '24px',
-                border: '1.5px solid rgba(226, 232, 240, 0.8)',
-                boxShadow: '0 10px 30px -5px rgba(0,0,0,0.05)',
-                overflow: 'hidden', minHeight: '300px'
-            }}>
-                <div style={{ padding: '32px' }}>
-                    {currentStep === 1 && renderStep1()}
-                    {currentStep === 2 && renderStep2()}
-                    {currentStep === 3 && renderStep3()}
-                    {currentStep === 4 && renderStep4()}
-                </div>
-
-                {/* Progress bar at bottom of card */}
-                <div style={{ height: '4px', width: '100%', background: '#f1f5f9' }}>
                     <div style={{
-                        height: '100%',
-                        width: `${(currentStep / 4) * 100}%`,
-                        background: '#084b8a',
-                        transition: 'width 0.5s ease'
-                    }} />
-                </div>
-            </div>
+                        background: '#fff', borderRadius: '24px',
+                        border: '1.5px solid rgba(226, 232, 240, 0.8)',
+                        boxShadow: '0 10px 30px -5px rgba(0,0,0,0.05)',
+                        overflow: 'hidden', minHeight: '300px'
+                    }}>
+                        <div style={{ padding: '32px' }}>
+                            {currentStep === 1 && renderStep1()}
+                            {currentStep === 2 && renderStep2()}
+                            {currentStep === 3 && renderStep3()}
+                            {currentStep === 4 && renderStep4()}
+                        </div>
+
+                        <div style={{ height: '4px', width: '100%', background: '#f1f5f9' }}>
+                            <div style={{
+                                height: '100%',
+                                width: `${(currentStep / 4) * 100}%`,
+                                background: '#084b8a',
+                                transition: 'width 0.5s ease'
+                            }} />
+                        </div>
+                    </div>
+                </>
+            )}
+
+            <Card
+                style={{
+                    marginTop: 24,
+                    borderRadius: 20,
+                    border: '1.5px solid rgba(226, 232, 240, 0.9)',
+                    boxShadow: '0 10px 30px -5px rgba(0,0,0,0.04)',
+                }}
+                title={
+                    <Space>
+                        <GoogleOutlined />
+                        <span>Connected Google Ads Accounts</span>
+                    </Space>
+                }
+                extra={
+                    <Space wrap>
+                        <Button onClick={fetchGoogleConnections} loading={accountsLoading} icon={<SyncOutlined />}>
+                            Refresh
+                        </Button>
+                        <Button type="primary" onClick={startAddAccountFlow} icon={<ApiOutlined />}>
+                            Add Another Account
+                        </Button>
+                    </Space>
+                }
+            >
+                <Alert
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 16, borderRadius: 12 }}
+                    message="How multiple Google accounts work"
+                    description="Each project can select one Google account. Spend sync and conversion upload use that selected customer ID and conversion action. If this row has no separate refresh token, the workspace OAuth login is used for access."
+                />
+                <Table
+                    rowKey="id"
+                    loading={accountsLoading}
+                    dataSource={googleConnections}
+                    columns={googleAccountColumns}
+                    scroll={{ x: 900 }}
+                    pagination={{ pageSize: 6, hideOnSinglePage: true }}
+                    locale={{ emptyText: 'No Google accounts added yet' }}
+                />
+            </Card>
+
+            <Modal
+                open={accountModalOpen}
+                title={editingAccount ? 'Edit Google Ads Account' : 'Add Google Ads Account'}
+                onCancel={closeAccountModal}
+                onOk={handleAccountSave}
+                okText={editingAccount ? 'Save Changes' : 'Add Account'}
+                confirmLoading={accountSaving}
+                width={720}
+                destroyOnHidden
+            >
+                <Alert
+                    type="warning"
+                    showIcon
+                    style={{ marginBottom: 16, borderRadius: 12 }}
+                    message="Use the real Google Ads customer ID for this project"
+                    description="This must be the account that owns the GCLID click. Otherwise Google will reject conversion uploads with an account access error."
+                />
+                <Form form={accountForm} layout="vertical" requiredMark={false}>
+                    <Row gutter={12}>
+                        <Col xs={24} md={12}>
+                            <Form.Item name="label" label="Account Label">
+                                <Input placeholder="Client A Google Ads" />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Form.Item name="status" label="Status" rules={[{ required: true }]}>
+                                <Select
+                                    options={[
+                                        { label: 'Active', value: 'active' },
+                                        { label: 'Inactive', value: 'inactive' },
+                                        { label: 'Disconnected', value: 'disconnected' },
+                                    ]}
+                                />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                    <Row gutter={12}>
+                        <Col xs={24} md={12}>
+                            <Form.Item
+                                name="customerId"
+                                label="Customer ID"
+                                rules={[{ required: true, message: 'Customer ID is required' }]}
+                                extra="Example: 918-028-7937"
+                            >
+                                <Input placeholder="918-028-7937" />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Form.Item
+                                name="managerCustomerId"
+                                label="MCC / Manager ID"
+                                extra="Optional if customer is under a manager account"
+                            >
+                                <Input placeholder="Optional manager ID" />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                    <Form.Item
+                        name="conversionActionId"
+                        label="Conversion Action ID"
+                        extra="Use the action ID from this customer account. Leave blank only if workspace default is correct."
+                    >
+                        <Input placeholder="7413484448" />
+                    </Form.Item>
+                    <Form.Item name="isDefault" label="Use as workspace default" valuePropName="checked">
+                        <Switch />
+                    </Form.Item>
+                </Form>
+            </Modal>
 
             <style>{`
                 .ant-form-item-label { padding-bottom: 8px !important; }

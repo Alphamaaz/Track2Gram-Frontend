@@ -5,6 +5,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import dayjs from 'dayjs'
 import projectService from '../services/project'
 import { useNavigate } from 'react-router-dom'
+import { getDateRangePresets } from '../utils/dateRangePresets'
 
 const { Title, Text } = Typography
 const { RangePicker } = DatePicker
@@ -258,6 +259,7 @@ const Dashboard = () => {
           <RangePicker
             value={dateRange}
             onChange={setDateRange}
+            presets={getDateRangePresets()}
             style={{ borderRadius: '8px', padding: '8px 12px' }}
           />
         </Space>

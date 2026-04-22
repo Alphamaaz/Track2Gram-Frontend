@@ -68,10 +68,10 @@ export const googleAdsService = {
      * Send authorization code to backend
      * @param {string} code 
      */
-    callback: (code) => {
+    callback: (code, options = {}) => {
         return request('/google-ads/callback', {
             method: 'POST',
-            body: JSON.stringify({ code }),
+            body: JSON.stringify({ code, ...options }),
         });
     },
 

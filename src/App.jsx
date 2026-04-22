@@ -13,6 +13,7 @@ import LandingPageEditor from './pages/LandingPageEditor'
 import MetaAdsIntegration from './pages/MetaAdsIntegration'
 import GoogleAdsIntegration from './pages/GoogleAdsIntegration'
 import TelegramIntegration from './pages/TelegramIntegration'
+import ConnectionManagement from './pages/ConnectionManagement'
 import LeadManagement from './pages/LeadManagement'
 import Analytics from './pages/Analytics'
 import RoleManagement from './pages/RoleManagement'
@@ -101,6 +102,7 @@ function App() {
                       collapsed={collapsed}
                       setCollapsed={setCollapsed}
                     />
+<<<<<<< HEAD
                     <Content
                       style={{
                         padding: 'clamp(16px, 4vw, 32px)',
@@ -113,6 +115,46 @@ function App() {
                       <div style={{ maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
                         <Routes>
                           <Route path="dashboard" element={<Dashboard />} />
+=======
+                    <Layout style={{ marginTop: 64 }}>
+                      <Sidebar
+                        collapsed={collapsed}
+                        setCollapsed={setCollapsed}
+                      />
+                      <Content
+                        style={{
+                          padding: 'clamp(16px, 4vw, 32px)',
+                          background: '#f8fafc',
+                          minHeight: 280,
+                          transition: 'all 0.2s cubic-bezier(0.2, 0, 0, 1)',
+                        }}
+                        className="main-content-area"
+                      >
+                        <div style={{ maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
+                          <Routes>
+                            <Route path="dashboard" element={<Dashboard />} />
+                            <Route path="projects" element={<Projects />} />
+                            <Route path="projects/new" element={<ProjectConfiguration />} />
+                            <Route path="projects/edit/:id" element={<ProjectConfiguration />} />
+                            <Route path="landing-pages" element={<Navigate to="/landing-pages/builder" replace />} />
+                            <Route path="landing-pages/builder" element={<LandingPageEditor />} />
+                            <Route path="landing-pages/builder/:id" element={<LandingPageEditor />} />
+                            <Route path="integrations/meta-ads" element={<MetaAdsIntegration />} />
+                            <Route path="integrations/google-ads" element={<GoogleAdsIntegration />} />
+                            <Route path="integrations/telegram" element={<TelegramIntegration />} />
+                            <Route path="integrations/accounts" element={<ConnectionManagement />} />
+                            <Route path="lead-management" element={<LeadManagement />} />
+                            <Route path="analytics" element={<Analytics />} />
+                            <Route path="retention" element={<RetentionCampaigns />} />
+                            <Route path="role-management" element={<RoleManagement />} />
+                            <Route path="buyers" element={<Buyer />} />
+                            <Route path="billing" element={<Billing />} />
+                            <Route path="support" element={<Support />} />
+                          </Routes>
+                        </div>
+                      </Content>
+                    </Layout>
+>>>>>>> 13047b5dd3746239684e3543548149942676341c
 
                           <Route path="projects" element={<Projects />} />
                           <Route path="projects/new" element={<ProjectConfiguration />} />

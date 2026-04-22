@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Typography, Button, Space, Form, Input, Skeleton, App, Row, Col, Alert } from 'antd';
-import { SaveOutlined, SendOutlined } from '@ant-design/icons';
+import { Typography, Button, Space, Form, Input, Skeleton, App, Row, Col, Alert, Card, Table, Tag, Switch } from 'antd';
+import { SaveOutlined, SendOutlined, SyncOutlined } from '@ant-design/icons';
 import { settingsService } from '../services/settings';
+import connectionService from '../services/connections';
 
 const { Title, Text } = Typography;
 
@@ -13,6 +14,17 @@ const TelegramIntegration = () => {
     const [tokenVisible, setTokenVisible] = useState(false);
     const [statusLoading, setStatusLoading] = useState(false);
     const [telegramStatus, setTelegramStatus] = useState(null);
+    const [telegramConnections, setTelegramConnections] = useState([]);
+    const [showSetupForm, setShowSetupForm] = useState(false);
+
+    const fetchTelegramConnections = useCallback(async () => {
+        try {
+            const response = await connectionService.getConnections('telegram');
+            setTelegramConnections(Array.isArray(response?.data) ? response.data : []);
+        } catch (error) {
+            console.error('Failed to fetch Telegram connections:', error);
+        }
+    }, []);
 
     const fetchTelegramStatus = useCallback(async (silent = true) => {
         try {
@@ -34,14 +46,14 @@ const TelegramIntegration = () => {
             setLoading(true);
             const data = await settingsService.getSettings();
             form.setFieldsValue(data);
-            await fetchTelegramStatus(true);
+            await Promise.all([fetchTelegramStatus(true), fetchTelegramConnections()]);
         } catch (error) {
             console.error('Failed to fetch settings:', error);
             message.error(error.message || 'Failed to load settings');
         } finally {
             setLoading(false);
         }
-    }, [form, message, fetchTelegramStatus]);
+    }, [form, message, fetchTelegramStatus, fetchTelegramConnections]);
 
     useEffect(() => {
         fetchSettings();
@@ -50,7 +62,19 @@ const TelegramIntegration = () => {
     const onFinish = async (values) => {
         try {
             setSaving(true);
-            await settingsService.updateSettings(values);
+            const { TELEGRAM_MANUAL_APPROVAL_REQUIRED, ...settingsValues } = values;
+            await settingsService.updateSettings(settingsValues);
+            await connectionService.createConnection('telegram', {
+                label: values.TELEGRAM_BOT_USERNAME || values.TELEGRAM_CHANNEL_ID || 'Telegram Channel',
+                botToken: values.TELEGRAM_BOT_TOKEN,
+                botUsername: values.TELEGRAM_BOT_USERNAME,
+                channelId: values.TELEGRAM_CHANNEL_ID,
+                redirectUrl: values.TELEGRAM_REDIRECT_URL,
+                manualApprovalRequired: Boolean(TELEGRAM_MANUAL_APPROVAL_REQUIRED),
+                isDefault: true,
+            }).catch((error) => {
+                console.warn('Telegram connection create skipped:', error?.message || error);
+            });
             const statusResponse = await settingsService.getTelegramStatus();
             const status = statusResponse?.data || null;
             setTelegramStatus(status);
@@ -62,6 +86,7 @@ const TelegramIntegration = () => {
             } else {
                 message.success('Telegram settings updated successfully');
             }
+            setShowSetupForm(false);
             fetchSettings();
         } catch (error) {
             console.error('Failed to update settings:', error);
@@ -98,6 +123,56 @@ const TelegramIntegration = () => {
         alignItems: 'center',
         justifyContent: 'space-between'
     };
+
+    const showTelegramForm = showSetupForm || telegramConnections.length === 0;
+    const telegramColumns = [
+        {
+            title: 'Bot / Channel',
+            key: 'botChannel',
+            render: (_, record) => (
+                <Space direction="vertical" size={2}>
+                    <Space wrap>
+                        <Text strong>{record.label || record.channelTitle || 'Telegram Channel'}</Text>
+                        {record.isDefault && <Tag color="blue">Default</Tag>}
+                    </Space>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                        {record.botUsername ? `@${record.botUsername}` : 'Bot username missing'}
+                    </Text>
+                </Space>
+            ),
+        },
+        {
+            title: 'Channel ID',
+            dataIndex: 'channelId',
+            key: 'channelId',
+            render: value => value || 'N/A',
+        },
+        {
+            title: 'Status',
+            dataIndex: 'status',
+            key: 'status',
+            width: 120,
+            render: value => (
+                <Tag color={value === 'active' ? 'green' : value === 'inactive' ? 'orange' : 'red'}>
+                    {String(value || 'active').toUpperCase()}
+                </Tag>
+            ),
+        },
+        {
+            title: 'Approval',
+            dataIndex: 'manualApprovalRequired',
+            key: 'manualApprovalRequired',
+            width: 140,
+            render: value => <Tag color={value ? 'orange' : 'green'}>{value ? 'MANUAL' : 'AUTO'}</Tag>,
+        },
+        {
+            title: 'Last Error',
+            dataIndex: 'lastError',
+            key: 'lastError',
+            ellipsis: true,
+            render: value => value ? <Text type="danger">{value}</Text> : <Text type="secondary">None</Text>,
+        },
+    ];
 
     const statusAlerts = [];
     if (telegramStatus) {
@@ -172,29 +247,35 @@ const TelegramIntegration = () => {
                     </Title>
                     <Text type="secondary" style={{ fontSize: '13px' }}>Connect and manage your Telegram bot relay settings</Text>
                 </div>
-                <Button
-                    type="primary"
-                    icon={<SaveOutlined style={{ fontSize: '15px' }} />}
-                    size="large"
-                    loading={saving}
-                    onClick={() => form.submit()}
-                    style={{
-                        borderRadius: '10px',
-                        height: '42px',
-                        padding: '0 24px',
-                        fontSize: '14px',
-                        fontWeight: 600,
-                        background: '#084b8a',
-                        border: 'none',
-                        boxShadow: '0 4px 12px rgba(8, 75, 138, 0.2)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                    }}
-                    className="sync-button"
-                >
-                    Sync Telegram
-                </Button>
+                <Space wrap>
+                    {showSetupForm && telegramConnections.length > 0 && (
+                        <Button onClick={() => setShowSetupForm(false)}>
+                            Cancel Setup
+                        </Button>
+                    )}
+                    <Button
+                        type="primary"
+                        icon={<SendOutlined style={{ fontSize: '15px' }} />}
+                        size="large"
+                        onClick={() => setShowSetupForm(true)}
+                        style={{
+                            borderRadius: '10px',
+                            height: '42px',
+                            padding: '0 24px',
+                            fontSize: '14px',
+                            fontWeight: 600,
+                            background: '#084b8a',
+                            border: 'none',
+                            boxShadow: '0 4px 12px rgba(8, 75, 138, 0.2)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                        }}
+                        className="sync-button"
+                    >
+                        Add Telegram Channel
+                    </Button>
+                </Space>
             </div>
 
             {statusAlerts.length > 0 && (
@@ -211,6 +292,7 @@ const TelegramIntegration = () => {
                 </Space>
             )}
 
+            {showTelegramForm && (
             <Form
                 form={form}
                 layout="vertical"
@@ -281,13 +363,65 @@ const TelegramIntegration = () => {
                         <Form.Item
                             label={<Text strong style={{ color: '#334155', fontSize: '14px' }}>Telegram Channel Link</Text>}
                             name="TELEGRAM_REDIRECT_URL"
-                            style={{ marginBottom: 0 }}
+                            style={{ marginBottom: '22px' }}
                         >
                             <Input size="large" className="premium-input" placeholder="https://t.me/your_channel_link" />
                         </Form.Item>
+                        <Form.Item
+                            label={<Text strong style={{ color: '#334155', fontSize: '14px' }}>Manual approval required</Text>}
+                            name="TELEGRAM_MANUAL_APPROVAL_REQUIRED"
+                            valuePropName="checked"
+                            initialValue={false}
+                            extra={<Text type="secondary" style={{ fontSize: '12px' }}>When enabled, users send a join request and conversions are tracked only after a channel admin approves them.</Text>}
+                            style={{ marginBottom: 0 }}
+                        >
+                            <Switch checkedChildren="Manual" unCheckedChildren="Auto" />
+                        </Form.Item>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 28 }}>
+                            <Button
+                                type="primary"
+                                icon={<SaveOutlined style={{ fontSize: '15px' }} />}
+                                size="large"
+                                loading={saving}
+                                onClick={() => form.submit()}
+                                style={{
+                                    borderRadius: '10px',
+                                    height: '42px',
+                                    padding: '0 24px',
+                                    fontSize: '14px',
+                                    fontWeight: 600,
+                                    background: '#084b8a',
+                                    border: 'none',
+                                    boxShadow: '0 4px 12px rgba(8, 75, 138, 0.2)',
+                                }}
+                            >
+                                Save Channel
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </Form>
+            )}
+
+            <Card
+                style={{
+                    marginTop: showTelegramForm ? 24 : 0,
+                    borderRadius: '20px',
+                    border: '1px solid rgba(226, 232, 240, 0.7)',
+                    boxShadow: '0 4px 20px -5px rgba(0, 0, 0, 0.05)',
+                }}
+                title="Connected Telegram Channels"
+                extra={<Button onClick={fetchTelegramConnections} icon={<SyncOutlined />}>Refresh</Button>}
+            >
+                <Table
+                    rowKey="id"
+                    dataSource={telegramConnections}
+                    columns={telegramColumns}
+                    scroll={{ x: 760 }}
+                    pagination={{ pageSize: 6, hideOnSinglePage: true }}
+                    locale={{ emptyText: 'No Telegram channels added yet' }}
+                />
+            </Card>
 
             <style>
                 {`

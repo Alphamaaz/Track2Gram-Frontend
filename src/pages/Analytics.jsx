@@ -5,6 +5,7 @@ import { useLocation } from 'react-router-dom';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import { projectService } from '../services/project';
 import dayjs from 'dayjs';
+import { getDateRangePresets } from '../utils/dateRangePresets';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -601,6 +602,7 @@ const Analytics = () => {
                     <RangePicker
                         value={dateRange}
                         onChange={setDateRange}
+                        presets={getDateRangePresets()}
                         style={{ borderRadius: '8px', padding: '8px 12px' }}
                     />
                 </div>

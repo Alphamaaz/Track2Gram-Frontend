@@ -87,6 +87,10 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
           key: '/integrations/telegram',
           label: <Link to="/integrations/telegram">Telegram</Link>,
         },
+        {
+          key: '/integrations/accounts',
+          label: <Link to="/integrations/accounts">Connected Accounts</Link>,
+        },
       ],
     },
     {

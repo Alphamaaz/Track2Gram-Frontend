@@ -13,6 +13,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import projectService from '../services/project';
+import { getDateRangePresets } from '../utils/dateRangePresets';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -286,6 +287,7 @@ const LeadManagement = () => {
                     />
                     <RangePicker
                         style={{ borderRadius: '10px' }}
+                        presets={getDateRangePresets()}
                         onChange={(dates) => handleFilterChange('dateRange', dates)}
                     />
                 </Space>
