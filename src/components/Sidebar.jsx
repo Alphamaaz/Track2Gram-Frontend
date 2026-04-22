@@ -138,7 +138,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
           setCollapsed(true)
         }
       }}
-      theme="light"
+      theme="dark"
       style={{
         overflow: 'auto',
         height: 'calc(100vh - 64px)',
@@ -236,16 +236,19 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
 
       <style>
         {`
+          .ant-menu-item, .ant-menu-submenu-title {
+            color: #ffffff !important;
+          }
           .ant-menu-item-selected {
             background-color: #084b8a !important;
-            color: #fff !important;
+            color: #ffffff !important;
           }
           .ant-menu-item:hover, .ant-menu-submenu-title:hover {
-            color: #fff !important;
+            color: #ffffff !important;
             background-color: rgba(255, 255, 255, 0.15) !important;
           }
           .ant-menu-item a, .ant-menu-submenu-title {
-            color: inherit !important;
+            color: #ffffff !important;
             font-weight: 500 !important;
             transition: all 0.2s;
           }
@@ -255,10 +258,10 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
           }
           .ant-menu-item .anticon, .ant-menu-submenu-title .anticon {
             font-size: 18px !important;
-            color: inherit !important;
+            color: #ffffff !important;
           }
           .ant-menu-submenu-arrow {
-            color: #94a3b8 !important;
+            color: #ffffff !important;
           }
           .ant-menu-sub {
             background: transparent !important;

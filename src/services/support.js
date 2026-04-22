@@ -48,6 +48,17 @@ export const supportService = {
             method: 'POST',
             body: formData,
         });
+    },
+
+    /**
+     * Submit a contact inquiry
+     * @param {Object} data { name, email, message }
+     */
+    contactUs: (data) => {
+        return request('/contact-us', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
     }
 };
 

@@ -83,3 +83,117 @@ h6 {
 .ant-table-column-sorter {
   color: #ffffff !important;
 }
+
+/* Responsive Navigation Styles */
+.desktop-nav {
+  display: flex !important;
+}
+
+.mobile-menu-btn {
+  display: none !important;
+}
+
+.theme-toggle-navbar {
+  display: flex !important;
+}
+
+@media (max-width: 768px) {
+  .desktop-nav {
+    display: none !important;
+  }
+
+  .mobile-menu-btn {
+    display: flex !important;
+  }
+
+  .theme-toggle-navbar {
+    display: none !important;
+  }
+
+  /* Hide navigation items on mobile */
+  .ant-layout-header {
+    flex-wrap: wrap;
+    padding: 0 12px !important;
+    gap: 8px;
+  }
+
+  /* Responsive button sizing for mobile */
+  .ant-btn {
+    height: 36px !important;
+    padding: 0 16px !important;
+    font-size: 13px !important;
+  }
+}
+
+/* Animation for hero section */
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Dark Theme Text Contrast Improvements */
+.ant-collapse-header {
+  color: inherit !important;
+}
+
+.ant-collapse-item-active .ant-collapse-header {
+  color: inherit !important;
+}
+
+/* Ant Design Menu Dark Theme */
+.ant-menu-item {
+  color: inherit !important;
+}
+
+.ant-menu-item-selected {
+  color: inherit !important;
+  background-color: transparent !important;
+}
+
+/* Modal and Drawer Dark Theme */
+.ant-modal-content {
+  background: inherit;
+}
+
+.ant-drawer-content-wrapper {
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.15);
+}

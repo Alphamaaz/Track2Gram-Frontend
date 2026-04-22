@@ -73,6 +73,15 @@ export const settingsService = {
             method: 'GET',
         });
     },
+
+    /**
+     * Get subscription pricing
+     */
+    getPricing: () => {
+        return request('/settings/subscription/pricing', {
+            method: 'GET',
+        });
+    },
 };
 
 export default settingsService;
