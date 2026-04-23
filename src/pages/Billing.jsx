@@ -29,6 +29,7 @@ const { Title, Text, Paragraph } = Typography;
 const DISPLAY_PRICES = {
   starter: 19.99,
   pro: 39.99,
+  yearly: 399.99,
 };
 
 const PLAN_FEATURES = {
@@ -44,6 +45,12 @@ const PLAN_FEATURES = {
     'Lead scoring and management',
     'Priority support',
   ],
+  yearly: [
+    'Everything in Professional',
+    'Annual access for Google + Meta',
+    'Lower effective monthly cost',
+    'Priority support',
+  ],
 };
 
 const toolOptions = [
@@ -56,6 +63,7 @@ const formatDateLabel = (value) => (value ? dayjs(value).format('MMM DD, YYYY') 
 const formatPlanLabel = (value) => {
   if (value === 'starter') return 'Starter';
   if (value === 'pro') return 'Professional';
+  if (value === 'yearly') return 'Yearly';
   return 'None';
 };
 const formatToolLabel = (value) => {
@@ -79,6 +87,7 @@ const Billing = () => {
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [pendingPlanType, setPendingPlanType] = useState(null);
   const [starterToolError, setStarterToolError] = useState('');
+  const [cryptoPlans, setCryptoPlans] = useState([]);
 
   const token = localStorage.getItem('token');
 
@@ -96,15 +105,22 @@ const Billing = () => {
   const fetchBillingData = useCallback(async () => {
     setLoading(true);
     try {
-      const statusRes = await fetch(`${API_BASE_URL}/settings/subscription/status`, { headers: buildHeaders(null) });
+      const [statusRes, plansRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/settings/subscription/status`, { headers: buildHeaders(null) }),
+        fetch(`${API_BASE_URL}/crypto-payments/plans`, { headers: buildHeaders(null) }),
+      ]);
 
       const statusData = await statusRes.json();
+      const plansData = await plansRes.json().catch(() => null);
 
       if (!statusRes.ok) throw new Error(statusData?.message || 'Failed to load subscription status');
 
       const normalizedStatus = normalizeSubscriptionStatus(statusData);
 
       setStatus(normalizedStatus);
+      if (plansRes.ok && Array.isArray(plansData?.data)) {
+        setCryptoPlans(plansData.data.filter((plan) => !plan.isTestPlan));
+      }
 
       if (VALID_STARTER_TOOLS.has(normalizedStatus?.activeTool)) {
         setSelectedTool(normalizedStatus.activeTool);
@@ -164,6 +180,7 @@ const Billing = () => {
   }, [clearBillingQuery, message, verifyCryptoPayment]);
 
   const resolveCryptoPlanId = useCallback((planType) => {
+    if (planType === 'yearly') return 'yearly';
     if (planType === 'pro') return 'pro';
     return selectedTool === 'meta_tracker' ? 'starter_meta' : 'starter';
   }, [selectedTool]);
@@ -224,6 +241,18 @@ const Billing = () => {
   const planCards = useMemo(() => {
     const isStarter = status?.planType === 'starter';
     const isPro = status?.planType === 'pro';
+    const isYearly = status?.planType === 'yearly';
+    const planById = cryptoPlans.reduce((acc, plan) => {
+      acc[plan.id] = plan;
+      return acc;
+    }, {});
+    const priceFor = (planType) => {
+      if (planType === 'starter') {
+        return Number(planById.starter?.priceUsd || planById.starter_meta?.priceUsd || DISPLAY_PRICES.starter);
+      }
+      return Number(planById[planType]?.priceUsd || DISPLAY_PRICES[planType]);
+    };
+    const yearlySavingsPercent = Number(planById.yearly?.savingsPercent || 0);
 
     return [
       {
@@ -231,7 +260,7 @@ const Billing = () => {
         heading: 'STARTER',
         title: 'Starter',
         description: 'Perfect for solo marketers.',
-        price: DISPLAY_PRICES.starter,
+        price: priceFor('starter'),
         current: isStarter && !status?.isTrialing,
         badge: null,
         emphasis: false,
@@ -243,15 +272,27 @@ const Billing = () => {
         heading: 'PROFESSIONAL',
         title: 'Professional',
         description: 'The best value for growing teams.',
-        price: DISPLAY_PRICES.pro,
+        price: priceFor('pro'),
         current: isPro && !status?.isTrialing,
         badge: 'Popular',
         emphasis: true,
         buttonLabel: isPro && !status?.isTrialing ? 'Current Plan' : 'Choose Professional',
         features: PLAN_FEATURES.pro,
       },
+      {
+        key: 'yearly',
+        heading: 'YEARLY',
+        title: 'Yearly',
+        description: 'Best annual value for committed teams.',
+        price: priceFor('yearly'),
+        current: isYearly && !status?.isTrialing,
+        badge: yearlySavingsPercent > 0 ? `Save ${yearlySavingsPercent}%` : 'Best Value',
+        emphasis: false,
+        buttonLabel: isYearly && !status?.isTrialing ? 'Current Plan' : 'Choose Yearly',
+        features: PLAN_FEATURES.yearly,
+      },
     ];
-  }, [status]);
+  }, [cryptoPlans, status]);
 
   const hasActivePlanDetails = Boolean(
     status &&
@@ -345,12 +386,12 @@ const Billing = () => {
 
       <Row gutter={[32, 32]} align="stretch">
         {planCards.map((plan) => (
-          <Col xs={24} lg={12} key={plan.key}>
+          <Col xs={24} lg={8} key={plan.key}>
             <Card
               bordered={false}
               style={{
                 height: '100%',
-                minHeight: 630,
+                minHeight: 610,
                 borderRadius: 30,
                 border: plan.emphasis ? '3px solid #0b5394' : '1px solid #dbe7f3',
                 boxShadow: plan.emphasis ? '0 20px 45px rgba(8, 75, 138, 0.12)' : '0 10px 30px rgba(15, 23, 42, 0.05)',
@@ -398,7 +439,7 @@ const Billing = () => {
                     lineHeight: 1,
                   }}
                 >
-                  {plan.price}
+                {Number(plan.price).toFixed(2)}
                   <span style={{ fontSize: '0.34em', marginLeft: 8 }}>USD</span>
                 </Title>
                 <Text style={{ fontSize: 15, color: '#64748b' }}>{plan.description}</Text>
@@ -493,7 +534,7 @@ const Billing = () => {
         <Space align="start">
           <InfoCircleOutlined style={{ color: '#0b5394', marginTop: 3 }} />
           <Text type="secondary">
-            Payments are billed monthly. Frontend checkout currently accepts crypto only through NowPayments. Please use BEP20 (USDTBSC) where possible to minimize gateway charges. Starter supports one tracking tool at a time. Professional activates both tools.
+            Starter and Professional are billed monthly. Yearly is billed once for 12 months and the saving percentage is calculated automatically from the current monthly Professional price. Frontend checkout currently accepts crypto only through NowPayments. Please use BEP20 (USDTBSC) where possible to minimize gateway charges.
           </Text>
         </Space>
       </Card>
@@ -517,7 +558,9 @@ const Billing = () => {
           <Paragraph type="secondary" style={{ marginBottom: 22 }}>
             {pendingPlanType === 'starter'
               ? `Starter plan${selectedTool === 'meta_tracker' ? ' (Meta Tracker)' : ' (Google Tracker)'}`
-              : 'Professional plan'}
+              : pendingPlanType === 'yearly'
+                ? 'Yearly plan (Google + Meta Tracker)'
+                : 'Professional plan'}
           </Paragraph>
 
           <Card

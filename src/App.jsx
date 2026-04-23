@@ -23,6 +23,7 @@ import RetentionCampaigns from './pages/RetentionCampaigns'
 import Support from './pages/Support'
 import EmailVerification from './pages/EmailVerification'
 import AcceptInvite from './pages/AcceptInvite'
+import ImpersonateLogin from './pages/ImpersonateLogin'
 import GoogleAdsAuthorize from './pages/GoogleAdsAuthorize'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import TermsOfService from './pages/TermsOfService'
@@ -84,6 +85,7 @@ function App() {
             <Route path="/google-ads/callback" element={<GoogleAdsAuthorize />} />
             <Route path="/verify-email" element={<EmailVerification />} />
             <Route path="/accept-invite" element={<AcceptInvite />} />
+            <Route path="/impersonate" element={<ImpersonateLogin />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy isDarkTheme={isDarkTheme} setIsDarkTheme={setIsDarkTheme} />} />
             <Route path="/terms-of-service" element={<TermsOfService isDarkTheme={isDarkTheme} setIsDarkTheme={setIsDarkTheme} />} />
             <Route path="/features" element={<Features />} />
