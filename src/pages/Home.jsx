@@ -63,7 +63,12 @@ const Home = ({ isDarkTheme, setIsDarkTheme }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Pricing data state
-    const [pricingData, setPricingData] = useState({ starter: 49, pro: 129 });
+    const [pricingData, setPricingData] = useState({
+        starter: 19.99,
+        pro: 39.99,
+        yearly: 399.99,
+        yearlySavingsPercent: 17,
+    });
     const [loadingPricing, setLoadingPricing] = useState(false);
 
     // Hero animation states
@@ -93,8 +98,9 @@ const Home = ({ isDarkTheme, setIsDarkTheme }) => {
             setLoadingPricing(true);
             try {
                 const data = await settingsService.getPricing();
-                if (data) {
-                    setPricingData(data);
+                const pricing = data?.data && typeof data.data === 'object' ? data.data : data;
+                if (pricing) {
+                    setPricingData(prev => ({ ...prev, ...pricing }));
                 }
             } catch (error) {
                 console.error('Error fetching pricing:', error);
@@ -495,6 +501,46 @@ const Home = ({ isDarkTheme, setIsDarkTheme }) => {
         { name: 'Meta', icon: <FacebookOutlined /> }
     ];
 
+    const formatUsdPrice = (value, fallback) => {
+        const amount = Number(value ?? fallback);
+        if (!Number.isFinite(amount)) return `$${fallback}`;
+        return `$${amount.toLocaleString(undefined, {
+            minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
+            maximumFractionDigits: 2,
+        })}`;
+    };
+
+    const yearlySavingsPercent = Number(pricingData.yearlySavingsPercent || 0);
+    const pricingPlans = [
+        {
+            key: 'starter',
+            title: 'Starter',
+            price: formatUsdPrice(pricingData.starter, 19.99),
+            badge: null,
+            emphasized: false,
+            delay: '0.1s',
+            features: ['Up to 5,000 leads/month', '2 Ad Accounts', 'Email Support'],
+        },
+        {
+            key: 'pro',
+            title: 'Professional',
+            price: formatUsdPrice(pricingData.pro, 39.99),
+            badge: 'MOST POPULAR',
+            emphasized: true,
+            delay: '0.2s',
+            features: ['Up to 25,000 leads/month', 'Unlimited Ad Accounts', 'Landing Pages', 'Priority Support'],
+        },
+        {
+            key: 'yearly',
+            title: 'Yearly',
+            price: formatUsdPrice(pricingData.yearly, 399.99),
+            badge: yearlySavingsPercent > 0 ? `SAVE ${yearlySavingsPercent}%` : 'BEST VALUE',
+            emphasized: false,
+            delay: '0.3s',
+            features: ['12 months access', 'Google + Meta tracking', 'Unlimited Ad Accounts', 'Priority Support'],
+        },
+    ];
+
     return (
         <LandingLayout isDarkTheme={isDarkTheme} setIsDarkTheme={setIsDarkTheme} themeColors={themeColors}>
             <SEO
@@ -864,7 +910,6 @@ const Home = ({ isDarkTheme, setIsDarkTheme }) => {
                 <section id="stats" style={{
                     padding: '0 clamp(16px, 5vw, 120px) 100px',
                     background: themeColors.heroBg,
-                    transition: 'all 0.3s ease',
                     opacity: statsVisible ? 1 : 0,
                     transform: statsVisible ? 'translateY(0)' : 'translateY(40px)',
                     transition: 'all 0.8s cubic-bezier(0.16, 1, 0.3, 1)'
@@ -1111,7 +1156,6 @@ const Home = ({ isDarkTheme, setIsDarkTheme }) => {
                     padding: '100px clamp(16px, 5vw, 120px)',
                     background: themeColors.bg,
                     textAlign: 'center',
-                    transition: 'all 0.3s ease',
                     opacity: howItWorksVisible ? 1 : 0,
                     transform: howItWorksVisible ? 'translateY(0)' : 'translateY(40px)',
                     transition: 'all 0.8s cubic-bezier(0.16, 1, 0.3, 1)'
@@ -1175,7 +1219,6 @@ const Home = ({ isDarkTheme, setIsDarkTheme }) => {
                     padding: '100px clamp(16px, 5vw, 120px)',
                     background: themeColors.heroBg,
                     textAlign: 'center',
-                    transition: 'all 0.3s ease',
                     opacity: featuresVisible ? 1 : 0,
                     transform: featuresVisible ? 'translateY(0)' : 'translateY(40px)',
                     transition: 'all 0.8s cubic-bezier(0.16, 1, 0.3, 1)'
@@ -1220,7 +1263,6 @@ const Home = ({ isDarkTheme, setIsDarkTheme }) => {
                     padding: '100px clamp(16px, 5vw, 120px)',
                     background: themeColors.bg,
                     textAlign: 'center',
-                    transition: 'all 0.3s ease',
                     opacity: whyUseVisible ? 1 : 0,
                     transform: whyUseVisible ? 'translateY(0)' : 'translateY(40px)',
                     transition: 'all 0.8s cubic-bezier(0.16, 1, 0.3, 1)'
@@ -1373,7 +1415,6 @@ const Home = ({ isDarkTheme, setIsDarkTheme }) => {
                     padding: 'clamp(60px, 10vw, 100px) clamp(16px, 5vw, 120px)',
                     background: themeColors.bg,
                     textAlign: 'center',
-                    transition: 'all 0.3s ease',
                     opacity: blogVisible ? 1 : 0,
                     transform: blogVisible ? 'translateY(0)' : 'translateY(40px)',
                     transition: 'all 0.8s cubic-bezier(0.16, 1, 0.3, 1)'
@@ -1486,7 +1527,6 @@ const Home = ({ isDarkTheme, setIsDarkTheme }) => {
                     padding: '100px clamp(16px, 5vw, 120px)',
                     background: themeColors.heroBg,
                     textAlign: 'center',
-                    transition: 'all 0.3s ease',
                     opacity: pricingVisible ? 1 : 0,
                     transform: pricingVisible ? 'translateY(0)' : 'translateY(40px)',
                     transition: 'all 0.8s cubic-bezier(0.16, 1, 0.3, 1)'
@@ -1499,93 +1539,60 @@ const Home = ({ isDarkTheme, setIsDarkTheme }) => {
                         Choose the plan that fits your needs. All plans include a 7-day free trial.
                     </Text>
 
-                    <Row gutter={[32, 32]} style={{ maxWidth: '900px', margin: '0 auto' }} justify="center">
-                        <Col xs={24} md={10}>
-                            <Card style={{
-                                borderRadius: '12px',
-                                border: `1px solid ${themeColors.border}`,
-                                height: '100%',
-                                boxShadow: isDarkTheme ? '0 4px 12px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0, 0, 0, 0.06)',
-                                background: themeColors.cardBg,
-                                transition: 'all 0.3s ease',
-                                animation: pricingVisible ? 'slideInUp 0.8s ease-out 0.1s both' : 'none'
-                            }} styles={{ body: { padding: '32px 28px' } }}>
-                                <Title level={3} style={{ fontWeight: 700, marginBottom: '8px', color: themeColors.text, fontSize: '20px' }}>Starter</Title>
-                                <Title level={1} style={{ color: themeColors.primary, marginBottom: '4px', fontSize: '44px', fontWeight: 800 }}>
-                                    {loadingPricing ? '...' : `$${pricingData.starter || 49}`}
-                                </Title>
-                                <Button type="primary" style={{ height: '48px', borderRadius: '8px', fontSize: '15px', fontWeight: 600, background: themeColors.primary, width: '100%', marginBottom: '32px', border: 'none' }} onClick={() => navigate('/signup')}>
-                                    Get Started
-                                </Button>
-                                <div style={{ textAlign: 'left', fontSize: '14px' }}>
-                                    <div style={{ marginBottom: '14px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                                        <CheckOutlined style={{ color: themeColors.primary, fontWeight: 700, marginTop: '2px', flexShrink: 0 }} />
-                                        <Text style={{ color: themeColors.text }}>Up to 5,000 leads/month</Text>
+                    <Row gutter={[32, 32]} style={{ maxWidth: '1180px', margin: '0 auto' }} justify="center">
+                        {pricingPlans.map((plan) => (
+                            <Col xs={24} md={8} key={plan.key}>
+                                <Card style={{
+                                    borderRadius: '12px',
+                                    border: plan.emphasized ? `2px solid ${themeColors.primary}` : `1px solid ${themeColors.border}`,
+                                    height: '100%',
+                                    boxShadow: plan.emphasized
+                                        ? (isDarkTheme ? '0 8px 24px rgba(59, 130, 246, 0.2)' : '0 8px 24px rgba(8, 75, 138, 0.2)')
+                                        : (isDarkTheme ? '0 4px 12px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0, 0, 0, 0.06)'),
+                                    background: themeColors.cardBg,
+                                    position: 'relative',
+                                    transition: 'all 0.3s ease',
+                                    animation: pricingVisible ? `slideInUp 0.8s ease-out ${plan.delay} both` : 'none'
+                                }} styles={{ body: { padding: '32px 28px' } }}>
+                                    {plan.badge && (
+                                        <div style={{
+                                            position: 'absolute',
+                                            top: '-14px',
+                                            left: '50%',
+                                            transform: 'translateX(-50%)',
+                                            background: themeColors.primary,
+                                            color: '#fff',
+                                            padding: '6px 18px',
+                                            borderRadius: '20px',
+                                            fontSize: '12px',
+                                            fontWeight: 700,
+                                            letterSpacing: '0.5px',
+                                            whiteSpace: 'nowrap'
+                                        }}>{plan.badge}</div>
+                                    )}
+                                    <Title level={3} style={{ fontWeight: 700, marginBottom: '8px', color: themeColors.text, fontSize: '20px' }}>
+                                        {plan.title}
+                                    </Title>
+                                    <Title level={1} style={{ color: themeColors.primary, marginBottom: '4px', fontSize: '44px', fontWeight: 800 }}>
+                                        {loadingPricing ? '...' : plan.price}
+                                    </Title>
+                                    <Text style={{ color: themeColors.mutedText, display: 'block', marginBottom: '22px' }}>
+                                        {plan.key === 'yearly' ? 'billed once per year' : 'per month'}
+                                    </Text>
+                                    <Button type="primary" style={{ height: '48px', borderRadius: '8px', fontSize: '15px', fontWeight: 600, background: themeColors.primary, width: '100%', marginBottom: '32px', border: 'none' }} onClick={() => navigate('/signup')}>
+                                        Get Started
+                                    </Button>
+                                    <div style={{ textAlign: 'left', fontSize: '14px' }}>
+                                        {plan.features.map((feature) => (
+                                            <div key={feature} style={{ marginBottom: '14px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                                                <CheckOutlined style={{ color: themeColors.primary, fontWeight: 700, marginTop: '2px', flexShrink: 0 }} />
+                                                <Text style={{ color: themeColors.text }}>{feature}</Text>
+                                            </div>
+                                        ))}
                                     </div>
-                                    <div style={{ marginBottom: '14px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                                        <CheckOutlined style={{ color: themeColors.primary, fontWeight: 700, marginTop: '2px', flexShrink: 0 }} />
-                                        <Text style={{ color: themeColors.text }}>2 Ad Accounts</Text>
-                                    </div>
-                                    <div style={{ marginBottom: '14px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                                        <CheckOutlined style={{ color: themeColors.primary, fontWeight: 700, marginTop: '2px', flexShrink: 0 }} />
-                                        <Text style={{ color: themeColors.text }}>Email Support</Text>
-                                    </div>
-                                </div>
-                            </Card>
-                        </Col>
-
-                        <Col xs={24} md={10}>
-                            <Card style={{
-                                borderRadius: '12px',
-                                border: `2px solid ${themeColors.primary}`,
-                                height: '100%',
-                                boxShadow: isDarkTheme ? '0 8px 24px rgba(59, 130, 246, 0.2)' : '0 8px 24px rgba(8, 75, 138, 0.2)',
-                                background: themeColors.cardBg,
-                                position: 'relative',
-                                transition: 'all 0.3s ease',
-                                animation: 'slideInUp 0.8s ease-out 0.2s both'
-                            }} styles={{ body: { padding: '32px 28px' } }}>
-                                <div style={{
-                                    position: 'absolute',
-                                    top: '-14px',
-                                    left: '50%',
-                                    transform: 'translateX(-50%)',
-                                    background: themeColors.primary,
-                                    color: '#fff',
-                                    padding: '6px 18px',
-                                    borderRadius: '20px',
-                                    fontSize: '12px',
-                                    fontWeight: 700,
-                                    letterSpacing: '0.5px'
-                                }}>MOST POPULAR</div>
-                                <Title level={3} style={{ fontWeight: 700, marginBottom: '8px', color: themeColors.text, fontSize: '20px' }}>Professional</Title>
-                                <Title level={1} style={{ color: themeColors.primary, marginBottom: '4px', fontSize: '44px', fontWeight: 800 }}>
-                                    {loadingPricing ? '...' : `$${pricingData.pro || 129}`}
-                                </Title>
-                                <Button type="primary" style={{ height: '48px', borderRadius: '8px', fontSize: '15px', fontWeight: 600, background: themeColors.primary, width: '100%', marginBottom: '32px', border: 'none' }} onClick={() => navigate('/signup')}>
-                                    Get Started
-                                </Button>
-                                <div style={{ textAlign: 'left', fontSize: '14px' }}>
-                                    <div style={{ marginBottom: '14px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                                        <CheckOutlined style={{ color: themeColors.primary, fontWeight: 700, marginTop: '2px', flexShrink: 0 }} />
-                                        <Text style={{ color: themeColors.text }}>Up to 25,000 leads/month</Text>
-                                    </div>
-                                    <div style={{ marginBottom: '14px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                                        <CheckOutlined style={{ color: themeColors.primary, fontWeight: 700, marginTop: '2px', flexShrink: 0 }} />
-                                        <Text style={{ color: themeColors.text }}>Unlimited Ad Accounts</Text>
-                                    </div>
-                                    <div style={{ marginBottom: '14px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                                        <CheckOutlined style={{ color: themeColors.primary, fontWeight: 700, marginTop: '2px', flexShrink: 0 }} />
-                                        <Text style={{ color: themeColors.text }}>Landing Pages</Text>
-                                    </div>
-                                    <div style={{ marginBottom: '14px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                                        <CheckOutlined style={{ color: themeColors.primary, fontWeight: 700, marginTop: '2px', flexShrink: 0 }} />
-                                        <Text style={{ color: themeColors.text }}>Priority Support</Text>
-                                    </div>
-                                </div>
-                            </Card>
-                        </Col>
-
+                                </Card>
+                            </Col>
+                        ))}
                     </Row>
                 </section>
 
@@ -1594,7 +1601,6 @@ const Home = ({ isDarkTheme, setIsDarkTheme }) => {
                     padding: '100px clamp(16px, 5vw, 120px)',
                     background: themeColors.heroBg,
                     textAlign: 'center',
-                    transition: 'all 0.3s ease',
                     opacity: faqVisible ? 1 : 0,
                     transform: faqVisible ? 'translateY(0)' : 'translateY(40px)',
                     transition: 'all 0.8s cubic-bezier(0.16, 1, 0.3, 1)'

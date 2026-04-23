@@ -8,7 +8,15 @@ import settingsService from '../services/settings';
 const formatPlanLabel = (value) => {
     if (value === 'starter') return 'Starter';
     if (value === 'pro') return 'Professional';
+    if (value === 'yearly') return 'Yearly';
     return 'No Active Plan';
+};
+
+const getPlanTagColor = (value) => {
+    if (value === 'yearly') return 'gold';
+    if (value === 'pro') return 'processing';
+    if (value === 'starter') return 'blue';
+    return 'default';
 };
 
 const ProfileModal = ({ visible, onCancel }) => {
@@ -215,7 +223,7 @@ const ProfileModal = ({ visible, onCancel }) => {
                                 </div>
                             </div>
                             <Tag
-                                color={subscriptionStatus?.planType === 'pro' ? 'processing' : subscriptionStatus?.planType === 'starter' ? 'blue' : 'default'}
+                                color={getPlanTagColor(subscriptionStatus?.planType)}
                                 style={{
                                     margin: 0,
                                     borderRadius: '999px',

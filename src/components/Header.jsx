@@ -5,7 +5,8 @@ import {
   UserOutlined,
   BellOutlined,
   MenuUnfoldOutlined,
-  MenuFoldOutlined
+  MenuFoldOutlined,
+  ArrowLeftOutlined
 } from '@ant-design/icons'
 import logo from '../assets/tyy 1.svg'
 
@@ -14,6 +15,15 @@ const { Header: AntHeader } = Layout
 const Header = ({ collapsed, onToggle }) => {
   const [profileVisible, setProfileVisible] = useState(false)
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const isImpersonating = Boolean(user.impersonated)
+  const returnUrl = localStorage.getItem('superAdminReturnUrl') || user.superAdminReturnUrl
+
+  const handleReturnToSuperAdmin = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    localStorage.removeItem('superAdminReturnUrl')
+    window.location.href = returnUrl || 'http://localhost:5174'
+  }
 
   return (
     <>
@@ -49,22 +59,33 @@ const Header = ({ collapsed, onToggle }) => {
           </div>
         </div>
 
-        <Space size="large" onClick={() => setProfileVisible(true)} style={{ cursor: 'pointer', transition: 'all 0.3s' }}>
-          {user.name && (
-            <span className="user-name-desktop" style={{
-              fontWeight: 700,
-              color: '#1e293b',
-              fontSize: '16px',
-              marginRight: '6px'
-            }}>
-              {user.name}
-            </span>
+        <Space size="middle">
+          {isImpersonating && (
+            <Button
+              icon={<ArrowLeftOutlined />}
+              onClick={handleReturnToSuperAdmin}
+              style={{ borderColor: '#c7d7ea', color: '#084b8a', fontWeight: 700 }}
+            >
+              Return to Super Admin
+            </Button>
           )}
-          <Avatar
-            size="default"
-            icon={<UserOutlined />}
-            style={{ backgroundColor: '#f1f5f9', color: '#084b8a', fontSize: '18px' }}
-          />
+          <Space size="large" onClick={() => setProfileVisible(true)} style={{ cursor: 'pointer', transition: 'all 0.3s' }}>
+            {user.name && (
+              <span className="user-name-desktop" style={{
+                fontWeight: 700,
+                color: '#1e293b',
+                fontSize: '16px',
+                marginRight: '6px'
+              }}>
+                {user.name}
+              </span>
+            )}
+            <Avatar
+              size="default"
+              icon={<UserOutlined />}
+              style={{ backgroundColor: '#f1f5f9', color: '#084b8a', fontSize: '18px' }}
+            />
+          </Space>
         </Space>
       </AntHeader>
       <ProfileModal
