@@ -176,13 +176,15 @@ const LandingLayout = ({ children, isDarkTheme = false, setIsDarkTheme = null, t
                             fontSize: '18px',
                             color: colors.text,
                             border: 'none',
-                            background: 'none'
+                            background: 'none',
+                            display: 'none'
                         }}
                         className="mobile-menu-btn"
                     />
                     
                     <Button 
                         onClick={() => navigate('/login')} 
+                        className="auth-btn-login"
                         style={{ 
                             height: '40px', 
                             padding: '0 20px', 
@@ -209,6 +211,7 @@ const LandingLayout = ({ children, isDarkTheme = false, setIsDarkTheme = null, t
                     
                     <Button 
                         onClick={() => navigate('/signup')} 
+                        className="auth-btn-signup"
                         style={{ 
                             height: '40px', 
                             padding: '0 20px', 
@@ -264,6 +267,63 @@ const LandingLayout = ({ children, isDarkTheme = false, setIsDarkTheme = null, t
                             onClick: () => scrollToSection(item.key)
                         }))}
                     />
+                    
+                    {/* Mobile Auth Buttons */}
+                    <div style={{ marginTop: '32px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <Button 
+                            onClick={() => {
+                                navigate('/login');
+                                setMobileMenuOpen(false);
+                            }} 
+                            style={{ 
+                                height: '44px', 
+                                padding: '0 20px', 
+                                borderRadius: '8px', 
+                                fontSize: '14px', 
+                                fontWeight: 700, 
+                                background: 'transparent',
+                                border: `2px solid ${colors.primary}`,
+                                color: colors.primary,
+                                transition: 'all 0.3s ease',
+                                cursor: 'pointer',
+                                width: '100%'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = colors.primary;
+                                e.currentTarget.style.color = '#fff';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'transparent';
+                                e.currentTarget.style.color = colors.primary;
+                            }}
+                        >
+                            Log In
+                        </Button>
+                        
+                        <Button 
+                            onClick={() => {
+                                navigate('/signup');
+                                setMobileMenuOpen(false);
+                            }} 
+                            style={{ 
+                                height: '44px', 
+                                padding: '0 20px', 
+                                borderRadius: '8px', 
+                                fontSize: '14px', 
+                                fontWeight: 700, 
+                                background: colors.primary, 
+                                border: 'none',
+                                color: '#fff',
+                                transition: 'all 0.3s ease',
+                                cursor: 'pointer',
+                                width: '100%'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                        >
+                            Sign Up
+                        </Button>
+                    </div>
                 </Drawer>
             </Header>
 
@@ -315,8 +375,18 @@ const LandingLayout = ({ children, isDarkTheme = false, setIsDarkTheme = null, t
             <style>
                 {`
                 @media (max-width: 991px) {
-                    .nav-links { display: none !important; }
+                    .desktop-nav { display: none !important; }
+                    .auth-btn-login, .auth-btn-signup { display: none !important; }
+                    .mobile-menu-btn { display: inline-block !important; }
+                    .theme-toggle-navbar { 
+                        display: none !important; 
+                    }
                 }
+                
+                @media (min-width: 992px) {
+                    .mobile-menu-btn { display: none !important; }
+                }
+                
                 .nav-item:hover {
                     color: ${colors.primary} !important;
                 }

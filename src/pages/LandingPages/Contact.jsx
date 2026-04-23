@@ -46,12 +46,12 @@ const Contact = () => {
                                 <Row gutter={16}>
                                     <Col span={12}>
                                         <Form.Item label="Full Name">
-                                            <Input placeholder="John Doe" style={{ borderRadius: '10px' }} />
+                                            <Input placeholder="" style={{ borderRadius: '10px' }} />
                                         </Form.Item>
                                     </Col>
                                     <Col span={12}>
                                         <Form.Item label="Email Address">
-                                            <Input placeholder="john@company.com" style={{ borderRadius: '10px' }} />
+                                            <Input placeholder="" style={{ borderRadius: '10px' }} />
                                         </Form.Item>
                                     </Col>
                                 </Row>
