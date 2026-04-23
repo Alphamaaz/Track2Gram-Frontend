@@ -906,35 +906,6 @@ const Home = ({ isDarkTheme, setIsDarkTheme }) => {
                     </Form>
                 </Modal>
 
-                {/* Stats Section */}
-                <section id="stats" style={{
-                    padding: '0 clamp(16px, 5vw, 120px) 100px',
-                    background: themeColors.heroBg,
-                    opacity: statsVisible ? 1 : 0,
-                    transform: statsVisible ? 'translateY(0)' : 'translateY(40px)',
-                    transition: 'all 0.8s cubic-bezier(0.16, 1, 0.3, 1)'
-                }}>
-                    <Row gutter={[24, 24]} style={{ display: 'flex', justifyContent: 'center' }}>
-                        {stats.map((stat, idx) => (
-                            <Col xs={24} md={8} key={idx}>
-                                <Card style={{
-                                    borderRadius: '12px',
-                                    padding: '12px',
-                                    border: `1px solid ${themeColors.border}`,
-                                    textAlign: 'center',
-                                    boxShadow: isDarkTheme ? '0 4px 12px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0, 0, 0, 0.06)',
-                                    background: themeColors.cardBg,
-                                    transition: 'all 0.3s ease',
-                                    animation: statsVisible ? `slideInUp 0.8s ease-out ${idx * 0.2}s both` : 'none'
-                                }} styles={{ body: { padding: '32px 24px' } }} hoverable>
-                                    <Title level={1} style={{ margin: 0, fontWeight: 800, color: themeColors.primary, fontSize: '44px', letterSpacing: '-0.02em' }}>{stat.value}</Title>
-                                    <Text strong style={{ fontSize: '15px', color: themeColors.text, display: 'block', marginTop: '8px', fontWeight: 700 }}>{stat.label}</Text>
-                                    <Text style={{ fontSize: '13px', color: themeColors.mutedText, display: 'block', marginTop: '4px' }}>{stat.description}</Text>
-                                </Card>
-                            </Col>
-                        ))}
-                    </Row>
-                </section>
 
 
 
@@ -1151,7 +1122,37 @@ const Home = ({ isDarkTheme, setIsDarkTheme }) => {
                 </section>
 
 
-                
+                {/* Stats Section */}
+                <section id="stats" style={{
+                    padding: '0 clamp(16px, 5vw, 120px) 100px',
+                    background: themeColors.heroBg,
+                    opacity: statsVisible ? 1 : 0,
+                    transform: statsVisible ? 'translateY(0)' : 'translateY(40px)',
+                    transition: 'all 0.8s cubic-bezier(0.16, 1, 0.3, 1)'
+                }}>
+                    <Row gutter={[24, 24]} style={{ display: 'flex', justifyContent: 'center' }}>
+                        {stats.map((stat, idx) => (
+                            <Col xs={24} md={8} key={idx}>
+                                <Card style={{
+                                    borderRadius: '12px',
+                                    padding: '12px',
+                                    border: `1px solid ${themeColors.border}`,
+                                    textAlign: 'center',
+                                    boxShadow: isDarkTheme ? '0 4px 12px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0, 0, 0, 0.06)',
+                                    background: themeColors.cardBg,
+                                    transition: 'all 0.3s ease',
+                                    animation: statsVisible ? `slideInUp 0.8s ease-out ${idx * 0.2}s both` : 'none'
+                                }} styles={{ body: { padding: '32px 24px' } }} hoverable>
+                                    <Title level={1} style={{ margin: 0, fontWeight: 800, color: themeColors.primary, fontSize: '44px', letterSpacing: '-0.02em' }}>{stat.value}</Title>
+                                    <Text strong style={{ fontSize: '15px', color: themeColors.text, display: 'block', marginTop: '8px', fontWeight: 700 }}>{stat.label}</Text>
+                                    <Text style={{ fontSize: '13px', color: themeColors.mutedText, display: 'block', marginTop: '4px' }}>{stat.description}</Text>
+                                </Card>
+                            </Col>
+                        ))}
+                    </Row>
+                </section>
+
+
                 <section id="how-it-works" style={{
                     padding: '100px clamp(16px, 5vw, 120px)',
                     background: themeColors.bg,
