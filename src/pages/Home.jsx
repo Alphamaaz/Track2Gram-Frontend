@@ -48,6 +48,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import LandingLayout from '../components/LandingLayout';
 import LogoImg from '../assets/tyy 1.svg';
+import VideoAsset from '../assets/Track2Gram_7.mp4';
 import SEO from '../components/SEO';
 import TikTokIcon from '../components/TikTokIcon';
 import { settingsService } from '../services/settings';
@@ -86,6 +87,7 @@ const Home = ({ isDarkTheme, setIsDarkTheme }) => {
     const [blogVisible, setBlogVisible] = useState(false);
     const [countersStarted, setCountersStarted] = useState(false);
     const [counterValues, setCounterValues] = useState({ leads: 0, campaigns: 0, adSpend: 0 });
+    const [videoVisible, setVideoVisible] = useState(false);
 
     const fullText = 'Track2Gram';
     const rotatingWords = ['Every Lead', 'Every Click', 'Every Conversion', 'Every Campaign', 'Every Dollar'];
@@ -197,6 +199,7 @@ const Home = ({ isDarkTheme, setIsDarkTheme }) => {
         const testimonialsObs = createObserver(setTestimonialsVisible);
         const faqObs = createObserver(setFaqVisible);
         const blogObs = createObserver(setBlogVisible);
+        const videoObs = createObserver(setVideoVisible);
 
         const statsSection = document.getElementById('stats');
         const howItWorksSection = document.getElementById('how-it-works');
@@ -206,6 +209,7 @@ const Home = ({ isDarkTheme, setIsDarkTheme }) => {
         const testimonialsSection = document.getElementById('testimonials');
         const faqSection = document.getElementById('faq');
         const blogSection = document.getElementById('blog');
+        const videoSection = document.getElementById('video-showcase');
 
         if (statsSection) statsObs.observe(statsSection);
         if (howItWorksSection) howItWorksObs.observe(howItWorksSection);
@@ -215,6 +219,7 @@ const Home = ({ isDarkTheme, setIsDarkTheme }) => {
         if (testimonialsSection) testimonialsObs.observe(testimonialsSection);
         if (faqSection) faqObs.observe(faqSection);
         if (blogSection) blogObs.observe(blogSection);
+        if (videoSection) videoObs.observe(videoSection);
 
         return () => {
             statsObs.disconnect();
@@ -225,6 +230,7 @@ const Home = ({ isDarkTheme, setIsDarkTheme }) => {
             testimonialsObs.disconnect();
             faqObs.disconnect();
             blogObs.disconnect();
+            videoObs.disconnect();
         };
     }, []);
 
@@ -900,6 +906,222 @@ const Home = ({ isDarkTheme, setIsDarkTheme }) => {
                     </Form>
                 </Modal>
 
+
+
+
+                {/* Premium Video Showcase Section */}
+                <section id="video-showcase" style={{
+                    padding: '100px clamp(16px, 5vw, 120px)',
+                    background: isDarkTheme
+                        ? `linear-gradient(135deg, #0f172a 0%, #1e293b 100%)`
+                        : `linear-gradient(135deg, #f8fafc 0%, #E6ECF2 100%)`,
+                    textAlign: 'center',
+                    transition: 'all 0.3s ease',
+                    opacity: videoVisible ? 1 : 0,
+                    transform: videoVisible ? 'translateY(0)' : 'translateY(40px)',
+                    transitionDuration: '0.8s',
+                    transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
+                    position: 'relative',
+                    overflow: 'hidden'
+                }}>
+                    {/* Decorative Background Elements */}
+                    <div style={{
+                        position: 'absolute',
+                        top: '-50%',
+                        right: '-10%',
+                        width: '600px',
+                        height: '600px',
+                        background: isDarkTheme
+                            ? 'radial-gradient(circle, rgba(59, 130, 246, 0.08) 0%, transparent 70%)'
+                            : 'radial-gradient(circle, rgba(8, 75, 138, 0.05) 0%, transparent 70%)',
+                        borderRadius: '50%',
+                        filter: 'blur(60px)',
+                        zIndex: 0
+                    }}></div>
+
+                    <div style={{
+                        position: 'relative',
+                        zIndex: 1,
+                        maxWidth: '1000px',
+                        margin: '0 auto'
+                    }}>
+                        {/* Section Title */}
+                        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
+                   
+                        </div>
+
+                        <Title level={2} style={{
+                            fontSize: 'clamp(32px, 5vw, 48px)',
+                            fontWeight: 800,
+                            marginBottom: '16px',
+                            letterSpacing: '-0.02em',
+                            color: themeColors.text,
+                            lineHeight: 1.2
+                        }}>
+                            Experience{' '}
+                            <span style={{ color: themeColors.primary }}>Track2Gram</span> In Action
+                        </Title>
+
+                        <Text style={{
+                            fontSize: 'clamp(15px, 2vw, 18px)',
+                            color: themeColors.mutedText,
+                            maxWidth: '700px',
+                            display: 'block',
+                            margin: '0 auto 60px',
+                            lineHeight: 1.8,
+                            fontWeight: 400
+                        }}>
+                            Watch how our platform simplifies lead tracking and conversion management. See the complete workflow from setup to real-time analytics.
+                        </Text>
+
+                        {/* Video Player Container */}
+                        <div style={{
+                            position: 'relative',
+                            width: '100%',
+                            maxWidth: '900px',
+                            margin: '0 auto',
+                            borderRadius: '16px',
+                            overflow: 'hidden',
+                            boxShadow: isDarkTheme
+                                ? '0 20px 60px rgba(59, 130, 246, 0.15), 0 0 1px rgba(59, 130, 246, 0.3)'
+                                : '0 20px 60px rgba(8, 75, 138, 0.12), 0 0 1px rgba(8, 75, 138, 0.2)',
+                            border: `1px solid ${themeColors.border}`,
+                            animation: videoVisible ? 'scaleIn 0.8s cubic-bezier(0.16, 1, 0.3, 1)' : 'none',
+                            background: isDarkTheme ? '#0f172a' : '#f8fafc'
+                        }}>
+                            {/* Video Wrapper */}
+                            <div style={{
+                                position: 'relative',
+                                width: '100%',
+                                paddingBottom: '56.25%', // 16:9 aspect ratio
+                                background: isDarkTheme ? '#000' : '#f0f0f0'
+                            }}>
+                                <video
+                                    style={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        width: '100%',
+                                        height: '100%',
+                                        objectFit: 'cover',
+                                        display: 'block'
+                                    }}
+                                    controls
+                                    controlsList="nodownload"
+                                    poster=""
+                                    preload="metadata"
+                                    title="Track2Gram - Platform Demo"
+                                >
+                                    <source src={VideoAsset} type="video/mp4" />
+                                    Your browser does not support the video tag. Please use a modern browser to view this video.
+                                </video>
+                            </div>
+
+                            {/* Gradient Overlay on Hover */}
+                            <div style={{
+                                position: 'absolute',
+                                inset: 0,
+                                background: 'none',
+                                pointerEvents: 'none',
+                                borderRadius: '16px',
+                                border: `1px solid ${themeColors.border}`,
+                                boxShadow: videoVisible ? `inset 0 0 30px rgba(${isDarkTheme ? '59, 130, 246' : '8, 75, 138'}, 0.1)` : 'none',
+                                transition: 'all 0.3s ease'
+                            }}></div>
+                        </div>
+
+                        {/* Video Features */}
+                        <Row gutter={[32, 32]} style={{ marginTop: '60px', maxWidth: '900px', margin: '60px auto 0' }}>
+                            <Col xs={24} sm={8}>
+                                <div style={{ textAlign: 'center' }}>
+                                    <div style={{
+                                        fontSize: '40px',
+                                        marginBottom: '16px',
+                                        color: themeColors.primary,
+                                        animation: 'pulse 2s ease-in-out infinite'
+                                    }}>
+                                        <PlayCircleOutlined />
+                                    </div>
+                                    <Title level={4} style={{
+                                        fontWeight: 700,
+                                        marginBottom: '8px',
+                                        fontSize: '16px',
+                                        color: themeColors.text
+                                    }}>
+                                        Complete Setup
+                                    </Title>
+                                    <Text style={{
+                                        color: themeColors.mutedText,
+                                        fontSize: '14px',
+                                        lineHeight: 1.6
+                                    }}>
+                                        Watch the full setup process from start to finish
+                                    </Text>
+                                </div>
+                            </Col>
+
+                            <Col xs={24} sm={8}>
+                                <div style={{ textAlign: 'center' }}>
+                                    <div style={{
+                                        fontSize: '40px',
+                                        marginBottom: '16px',
+                                        color: themeColors.primary,
+                                        animation: 'pulse 2s ease-in-out infinite 0.2s'
+                                    }}>
+                                        <BarChartOutlined />
+                                    </div>
+                                    <Title level={4} style={{
+                                        fontWeight: 700,
+                                        marginBottom: '8px',
+                                        fontSize: '16px',
+                                        color: themeColors.text
+                                    }}>
+                                        Real Analytics
+                                    </Title>
+                                    <Text style={{
+                                        color: themeColors.mutedText,
+                                        fontSize: '14px',
+                                        lineHeight: 1.6
+                                    }}>
+                                        Explore the intuitive analytics dashboard
+                                    </Text>
+                                </div>
+                            </Col>
+
+                            <Col xs={24} sm={8}>
+                                <div style={{ textAlign: 'center' }}>
+                                    <div style={{
+                                        fontSize: '40px',
+                                        marginBottom: '16px',
+                                        color: themeColors.primary,
+                                        animation: 'pulse 2s ease-in-out infinite 0.4s'
+                                    }}>
+                                        <RocketOutlined />
+                                    </div>
+                                    <Title level={4} style={{
+                                        fontWeight: 700,
+                                        marginBottom: '8px',
+                                        fontSize: '16px',
+                                        color: themeColors.text
+                                    }}>
+                                        Quick Launch
+                                    </Title>
+                                    <Text style={{
+                                        color: themeColors.mutedText,
+                                        fontSize: '14px',
+                                        lineHeight: 1.6
+                                    }}>
+                                        Get up and running in just 5 minutes
+                                    </Text>
+                                </div>
+                            </Col>
+                        </Row>
+
+                       
+                    </div>
+                </section>
+
+
                 {/* Stats Section */}
                 <section id="stats" style={{
                     padding: '0 clamp(16px, 5vw, 120px) 100px',
@@ -930,7 +1152,7 @@ const Home = ({ isDarkTheme, setIsDarkTheme }) => {
                     </Row>
                 </section>
 
-                {/* How It Works Section */}
+
                 <section id="how-it-works" style={{
                     padding: '100px clamp(16px, 5vw, 120px)',
                     background: themeColors.bg,
