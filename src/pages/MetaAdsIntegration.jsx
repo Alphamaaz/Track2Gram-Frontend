@@ -1,15 +1,27 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Typography, Input, Button, Card, Space, Form, Skeleton, App, Row, Col, Alert, Tooltip, Table, Tag } from 'antd';
-import { SaveOutlined, LinkOutlined, RocketOutlined, CheckCircleFilled, SyncOutlined, InfoCircleOutlined, GithubOutlined } from '@ant-design/icons';
+﻿import { useState, useEffect, useCallback } from 'react';
+import { Typography, Input, Button, Card, Space, Form, Skeleton, App, Row, Col, Alert, Tooltip, Table, Tag, Modal, Popconfirm, Select, Switch } from 'antd';
+import { SaveOutlined, LinkOutlined, RocketOutlined, CheckCircleFilled, SyncOutlined, InfoCircleOutlined, GithubOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { settingsService } from '../services/settings';
 import { metaAdsService } from '../services/metaAds';
 import connectionService from '../services/connections';
 
 const { Title, Text } = Typography;
 
+const META_EVENT_OPTIONS = [
+    'Subscribe',
+    'Lead',
+    'LeadInitiated',
+    'SubscribeInitiated',
+    'InitiateCheckout',
+    'CompleteRegistration',
+    'Purchase',
+    'Contact',
+    'SubmitApplication',
+];
 const MetaAdsIntegration = () => {
     const { message, modal } = App.useApp();
     const [form] = Form.useForm();
+    const [connectionForm] = Form.useForm();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [integrationScope, setIntegrationScope] = useState('platform');
@@ -19,6 +31,9 @@ const MetaAdsIntegration = () => {
     const [statusLoading, setStatusLoading] = useState(false);
     const [metaConnections, setMetaConnections] = useState([]);
     const [showSetupForm, setShowSetupForm] = useState(false);
+    const [connectionModalOpen, setConnectionModalOpen] = useState(false);
+    const [editingConnection, setEditingConnection] = useState(null);
+    const [connectionSaving, setConnectionSaving] = useState(false);
 
     const fetchMetaConnections = useCallback(async () => {
         try {
@@ -141,6 +156,88 @@ const MetaAdsIntegration = () => {
     // Removed handleCheckStatus as its functionality is covered by fetchSettings (called on Save/Refresh)
     // and the status indicator is updated automatically.
 
+    const openConnectionModal = (record) => {
+        setEditingConnection(record);
+        connectionForm.setFieldsValue({
+            label: record?.label || '',
+            adAccountId: record?.adAccountId || '',
+            pixelId: record?.pixelId || '',
+            accessToken: '',
+            eventName: record?.eventName || 'Subscribe',
+            testEventCode: record?.testEventCode || '',
+            status: record?.status || 'active',
+            isDefault: Boolean(record?.isDefault),
+        });
+        setConnectionModalOpen(true);
+    };
+
+    const closeConnectionModal = () => {
+        setConnectionModalOpen(false);
+        setEditingConnection(null);
+        connectionForm.resetFields();
+    };
+
+    const handleConnectionSave = async () => {
+        if (!editingConnection?.id) return;
+        try {
+            const values = await connectionForm.validateFields();
+            setConnectionSaving(true);
+            const payload = {
+                label: values.label,
+                adAccountId: values.adAccountId,
+                pixelId: values.pixelId,
+                eventName: values.eventName,
+                testEventCode: values.testEventCode,
+                status: values.status,
+                isDefault: Boolean(values.isDefault),
+            };
+            if (values.accessToken) payload.accessToken = values.accessToken;
+            await connectionService.updateConnection('meta', editingConnection.id, payload);
+            message.success('Meta account updated');
+            closeConnectionModal();
+            await fetchMetaConnections();
+        } catch (error) {
+            if (error?.errorFields) return;
+            console.error('Failed to update Meta connection:', error);
+            message.error(error?.message || 'Failed to update Meta account');
+        } finally {
+            setConnectionSaving(false);
+        }
+    };
+
+    const handleToggleConnectionStatus = async (record) => {
+        try {
+            const nextStatus = record.status === 'active' ? 'inactive' : 'active';
+            await connectionService.updateConnection('meta', record.id, { status: nextStatus });
+            message.success(nextStatus === 'active' ? 'Meta account enabled' : 'Meta account disabled');
+            await fetchMetaConnections();
+        } catch (error) {
+            console.error('Failed to update Meta status:', error);
+            message.error(error?.message || 'Failed to update Meta account status');
+        }
+    };
+
+    const handleSetDefaultConnection = async (record) => {
+        try {
+            await connectionService.updateConnection('meta', record.id, { isDefault: true });
+            message.success('Default Meta account updated');
+            await fetchMetaConnections();
+        } catch (error) {
+            console.error('Failed to set default Meta account:', error);
+            message.error(error?.message || 'Failed to set default Meta account');
+        }
+    };
+
+    const handleDeleteConnection = async (record) => {
+        try {
+            await connectionService.deleteConnection('meta', record.id);
+            message.success('Meta account deleted');
+            await fetchMetaConnections();
+        } catch (error) {
+            console.error('Failed to delete Meta connection:', error);
+            message.error(error?.message || 'Failed to delete Meta account');
+        }
+    };
     if (loading) {
         return (
             <div style={{ padding: '24px 20px', maxWidth: '1100px', margin: '0 auto' }}>
@@ -204,6 +301,37 @@ const MetaAdsIntegration = () => {
                 <Tag color={value === 'active' ? 'green' : value === 'inactive' ? 'orange' : 'red'}>
                     {String(value || 'active').toUpperCase()}
                 </Tag>
+            ),
+        },
+        {
+            title: 'Actions',
+            key: 'actions',
+            width: 280,
+            render: (_, record) => (
+                <Space wrap size={[8, 8]}>
+                    <Button size="small" icon={<EditOutlined />} onClick={() => openConnectionModal(record)}>
+                        Edit
+                    </Button>
+                    {!record.isDefault && (
+                        <Button size="small" onClick={() => handleSetDefaultConnection(record)}>
+                            Set Default
+                        </Button>
+                    )}
+                    <Button size="small" onClick={() => handleToggleConnectionStatus(record)}>
+                        {record.status === 'active' ? 'Disable' : 'Enable'}
+                    </Button>
+                    <Popconfirm
+                        title="Delete Meta account?"
+                        description="Projects using this account must be reassigned first."
+                        okText="Delete"
+                        okButtonProps={{ danger: true }}
+                        onConfirm={() => handleDeleteConnection(record)}
+                    >
+                        <Button size="small" danger icon={<DeleteOutlined />}>
+                            Delete
+                        </Button>
+                    </Popconfirm>
+                </Space>
             ),
         },
     ];
@@ -423,6 +551,60 @@ const MetaAdsIntegration = () => {
                     locale={{ emptyText: 'No Meta accounts added yet' }}
                 />
             </Card>
+            <Modal
+                title="Edit Meta Account"
+                open={connectionModalOpen}
+                onCancel={closeConnectionModal}
+                onOk={handleConnectionSave}
+                okText="Save Changes"
+                confirmLoading={connectionSaving}
+                destroyOnClose
+            >
+                <Form form={connectionForm} layout="vertical">
+                    <Form.Item name="label" label="Account Label" rules={[{ required: true, message: 'Enter an account label' }]}>
+                        <Input placeholder="Meta Main Account" />
+                    </Form.Item>
+                    <Row gutter={12}>
+                        <Col xs={24} md={12}>
+                            <Form.Item name="adAccountId" label="Ad Account ID" rules={[{ required: true, message: 'Enter the Meta ad account ID' }]}>
+                                <Input placeholder="act_123456789" />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Form.Item name="pixelId" label="Pixel ID" rules={[{ required: true, message: 'Enter the Meta Pixel ID' }]}>
+                                <Input placeholder="123456789" />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                    <Form.Item name="accessToken" label="CAPI Access Token">
+                        <Input.Password placeholder="Leave blank to keep the current token" />
+                    </Form.Item>
+                    <Row gutter={12}>
+                        <Col xs={24} md={12}>
+                            <Form.Item name="eventName" label="Event Name" rules={[{ required: true, message: 'Select an event' }]}>
+                                <Select options={META_EVENT_OPTIONS.map(value => ({ value, label: value }))} />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Form.Item name="testEventCode" label="Test Event Code">
+                                <Input placeholder="Optional" />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                    <Row gutter={12}>
+                        <Col xs={24} md={12}>
+                            <Form.Item name="status" label="Status">
+                                <Select options={[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }]} />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Form.Item name="isDefault" label="Default Account" valuePropName="checked">
+                                <Switch checkedChildren="Default" unCheckedChildren="No" />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                </Form>
+            </Modal>
 
             <style>
                 {`
@@ -463,3 +645,5 @@ const MetaAdsIntegration = () => {
 };
 
 export default MetaAdsIntegration;
+
+

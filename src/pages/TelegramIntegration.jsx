@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Typography, Button, Space, Form, Input, Skeleton, App, Row, Col, Alert, Card, Table, Tag, Switch } from 'antd';
-import { SaveOutlined, SendOutlined, SyncOutlined } from '@ant-design/icons';
+﻿import { useState, useEffect, useCallback } from 'react';
+import { Typography, Button, Space, Form, Input, Skeleton, App, Row, Col, Alert, Card, Table, Tag, Switch, Modal, Popconfirm, Select } from 'antd';
+import { SaveOutlined, SendOutlined, SyncOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { settingsService } from '../services/settings';
 import connectionService from '../services/connections';
 
@@ -9,6 +9,7 @@ const { Title, Text } = Typography;
 const TelegramIntegration = () => {
     const { message } = App.useApp();
     const [form] = Form.useForm();
+    const [connectionForm] = Form.useForm();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [tokenVisible, setTokenVisible] = useState(false);
@@ -16,6 +17,9 @@ const TelegramIntegration = () => {
     const [telegramStatus, setTelegramStatus] = useState(null);
     const [telegramConnections, setTelegramConnections] = useState([]);
     const [showSetupForm, setShowSetupForm] = useState(false);
+    const [connectionModalOpen, setConnectionModalOpen] = useState(false);
+    const [editingConnection, setEditingConnection] = useState(null);
+    const [connectionSaving, setConnectionSaving] = useState(false);
 
     const fetchTelegramConnections = useCallback(async () => {
         try {
@@ -96,6 +100,90 @@ const TelegramIntegration = () => {
         }
     };
 
+    const openConnectionModal = (record) => {
+        setEditingConnection(record);
+        connectionForm.setFieldsValue({
+            label: record?.label || record?.channelTitle || '',
+            botToken: '',
+            botUsername: record?.botUsername || '',
+            channelId: record?.channelId || '',
+            channelTitle: record?.channelTitle || '',
+            redirectUrl: record?.redirectUrl || '',
+            manualApprovalRequired: Boolean(record?.manualApprovalRequired),
+            status: record?.status || 'active',
+            isDefault: Boolean(record?.isDefault),
+        });
+        setConnectionModalOpen(true);
+    };
+
+    const closeConnectionModal = () => {
+        setConnectionModalOpen(false);
+        setEditingConnection(null);
+        connectionForm.resetFields();
+    };
+
+    const handleConnectionSave = async () => {
+        if (!editingConnection?.id) return;
+        try {
+            const values = await connectionForm.validateFields();
+            setConnectionSaving(true);
+            const payload = {
+                label: values.label,
+                botUsername: values.botUsername,
+                channelId: values.channelId,
+                channelTitle: values.channelTitle,
+                redirectUrl: values.redirectUrl,
+                manualApprovalRequired: Boolean(values.manualApprovalRequired),
+                status: values.status,
+                isDefault: Boolean(values.isDefault),
+            };
+            if (values.botToken) payload.botToken = values.botToken;
+            await connectionService.updateConnection('telegram', editingConnection.id, payload);
+            message.success('Telegram channel updated');
+            closeConnectionModal();
+            await fetchTelegramConnections();
+        } catch (error) {
+            if (error?.errorFields) return;
+            console.error('Failed to update Telegram connection:', error);
+            message.error(error?.message || 'Failed to update Telegram channel');
+        } finally {
+            setConnectionSaving(false);
+        }
+    };
+
+    const handleToggleConnectionStatus = async (record) => {
+        try {
+            const nextStatus = record.status === 'active' ? 'inactive' : 'active';
+            await connectionService.updateConnection('telegram', record.id, { status: nextStatus });
+            message.success(nextStatus === 'active' ? 'Telegram channel enabled' : 'Telegram channel disabled');
+            await fetchTelegramConnections();
+        } catch (error) {
+            console.error('Failed to update Telegram status:', error);
+            message.error(error?.message || 'Failed to update Telegram channel status');
+        }
+    };
+
+    const handleSetDefaultConnection = async (record) => {
+        try {
+            await connectionService.updateConnection('telegram', record.id, { isDefault: true });
+            message.success('Default Telegram channel updated');
+            await fetchTelegramConnections();
+        } catch (error) {
+            console.error('Failed to set default Telegram channel:', error);
+            message.error(error?.message || 'Failed to set default Telegram channel');
+        }
+    };
+
+    const handleDeleteConnection = async (record) => {
+        try {
+            await connectionService.deleteConnection('telegram', record.id);
+            message.success('Telegram channel deleted');
+            await fetchTelegramConnections();
+        } catch (error) {
+            console.error('Failed to delete Telegram connection:', error);
+            message.error(error?.message || 'Failed to delete Telegram channel');
+        }
+    };
     if (loading) {
         return (
             <div style={{ padding: 'clamp(24px, 5vw, 60px) clamp(16px, 3vw, 32px)', maxWidth: '1400px', margin: '0 auto' }}>
@@ -171,6 +259,37 @@ const TelegramIntegration = () => {
             key: 'lastError',
             ellipsis: true,
             render: value => value ? <Text type="danger">{value}</Text> : <Text type="secondary">None</Text>,
+        },
+        {
+            title: 'Actions',
+            key: 'actions',
+            width: 300,
+            render: (_, record) => (
+                <Space wrap size={[8, 8]}>
+                    <Button size="small" icon={<EditOutlined />} onClick={() => openConnectionModal(record)}>
+                        Edit
+                    </Button>
+                    {!record.isDefault && (
+                        <Button size="small" onClick={() => handleSetDefaultConnection(record)}>
+                            Set Default
+                        </Button>
+                    )}
+                    <Button size="small" onClick={() => handleToggleConnectionStatus(record)}>
+                        {record.status === 'active' ? 'Disable' : 'Enable'}
+                    </Button>
+                    <Popconfirm
+                        title="Delete Telegram channel?"
+                        description="Projects using this channel must be reassigned first."
+                        okText="Delete"
+                        okButtonProps={{ danger: true }}
+                        onConfirm={() => handleDeleteConnection(record)}
+                    >
+                        <Button size="small" danger icon={<DeleteOutlined />}>
+                            Delete
+                        </Button>
+                    </Popconfirm>
+                </Space>
+            ),
         },
     ];
 
@@ -422,6 +541,57 @@ const TelegramIntegration = () => {
                     locale={{ emptyText: 'No Telegram channels added yet' }}
                 />
             </Card>
+            <Modal
+                title="Edit Telegram Channel"
+                open={connectionModalOpen}
+                onCancel={closeConnectionModal}
+                onOk={handleConnectionSave}
+                okText="Save Changes"
+                confirmLoading={connectionSaving}
+                destroyOnClose
+            >
+                <Form form={connectionForm} layout="vertical">
+                    <Form.Item name="label" label="Connection Label" rules={[{ required: true, message: 'Enter a label' }]}>
+                        <Input placeholder="Main Telegram Channel" />
+                    </Form.Item>
+                    <Form.Item name="botToken" label="Bot Token">
+                        <Input.Password placeholder="Leave blank to keep the current token" />
+                    </Form.Item>
+                    <Row gutter={12}>
+                        <Col xs={24} md={12}>
+                            <Form.Item name="botUsername" label="Bot Username">
+                                <Input placeholder="Ads2trackbot" />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Form.Item name="channelId" label="Channel ID" rules={[{ required: true, message: 'Enter the channel ID' }]}>
+                                <Input placeholder="-1001234567890" />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                    <Form.Item name="channelTitle" label="Channel Title">
+                        <Input placeholder="VIP Signals" />
+                    </Form.Item>
+                    <Form.Item name="redirectUrl" label="Redirect URL">
+                        <Input placeholder="https://t.me/yourchannel" />
+                    </Form.Item>
+                    <Row gutter={12}>
+                        <Col xs={24} md={12}>
+                            <Form.Item name="status" label="Status">
+                                <Select options={[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }]} />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Form.Item name="manualApprovalRequired" label="Join Approval" valuePropName="checked">
+                                <Switch checkedChildren="Manual" unCheckedChildren="Auto" />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                    <Form.Item name="isDefault" label="Default Channel" valuePropName="checked">
+                        <Switch checkedChildren="Default" unCheckedChildren="No" />
+                    </Form.Item>
+                </Form>
+            </Modal>
 
             <style>
                 {`
@@ -463,3 +633,5 @@ const TelegramIntegration = () => {
 };
 
 export default TelegramIntegration;
+
+
