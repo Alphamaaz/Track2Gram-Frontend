@@ -16,6 +16,8 @@ const METRIC_KEY_MAP = {
     clicks: 'clicks',
     subscribers: 'subscribers',
     unsubscribers: 'unsubscribers',
+    failedConversions: 'failedConversions',
+    failedUploads: 'failedConversions',
     conversionRate: 'conversionRate',
     totalSpend: 'totalSpend',
 };
@@ -26,6 +28,8 @@ const PROJECT_BACKEND_METRIC_MAP = {
     clicks: 'clicks',
     subscribers: 'subscribers',
     unsubscribers: 'unsubscribers',
+    failedConversions: 'failedConversions',
+    failedUploads: 'failedConversions',
     conversionRate: 'conversionRate',
     totalSpend: 'totalSpend',
 };
@@ -35,6 +39,7 @@ const CHART_METRICS = [
     { value: 'clicks', label: 'Clicks' },
     { value: 'subscribers', label: 'Subscribers' },
     { value: 'unsubscribers', label: 'Unsubscribers' },
+    { value: 'failedConversions', label: 'Failed Uploads' },
     { value: 'conversionRate', label: 'Conversion Rate (%)' },
     { value: 'totalSpend', label: 'Ad Spend' },
 ];
@@ -70,6 +75,7 @@ const METRIC_COLORS = {
     clicks: '#084b8a',
     subscribers: '#6366f1',
     unsubscribers: '#ef4444',
+    failedConversions: '#d97706',
     conversionRate: '#f59e0b',
     totalSpend: '#0ea5e9',
 };
@@ -81,6 +87,7 @@ const METRIC_GRADIENT_IDS = {
     clicks: 'gradClicks',
     subscribers: 'gradSubscribers',
     unsubscribers: 'gradUnsubscribers',
+    failedConversions: 'gradFailedConversions',
     conversionRate: 'gradConvRate',
     totalSpend: 'gradSpend',
 };
@@ -90,6 +97,7 @@ const EMPTY_PLATFORM_METRICS = {
     totalClicks: 0,
     totalSubscribers: 0,
     totalUnsubscribers: 0,
+    failedConversions: 0,
     netSubscribers: 0,
     conversionRate: 0,
     clickThroughRate: 0,
@@ -154,12 +162,14 @@ const Analytics = () => {
             const clicksArr = Array.isArray(series?.clicks) ? series.clicks : [];
             const subsArr = Array.isArray(series?.subscribers) ? series.subscribers : [];
             const unsubsArr = Array.isArray(series?.unsubscribers) ? series.unsubscribers : [];
+            const failedArr = Array.isArray(series?.failedConversions) ? series.failedConversions : [];
             const spendArr = Array.isArray(spendByPlatform?.[platform]) ? spendByPlatform[platform] : [];
 
             const totalVisits = visitsArr.reduce((a, b) => a + Number(b || 0), 0);
             const totalClicks = clicksArr.reduce((a, b) => a + Number(b || 0), 0);
             const totalSubscribers = subsArr.reduce((a, b) => a + Number(b || 0), 0);
             const totalUnsubscribers = unsubsArr.reduce((a, b) => a + Number(b || 0), 0);
+            const failedConversions = failedArr.reduce((a, b) => a + Number(b || 0), 0);
             const totalSpend = spendArr.reduce((a, b) => a + Number(b || 0), 0);
             const totalConversions = totalSubscribers;
             const netSubscribers = totalSubscribers - totalUnsubscribers;
@@ -173,6 +183,7 @@ const Analytics = () => {
                 totalClicks,
                 totalSubscribers,
                 totalUnsubscribers,
+                failedConversions,
                 netSubscribers,
                 conversionRate,
                 clickThroughRate,
@@ -192,6 +203,7 @@ const Analytics = () => {
             totalClicks: Number(obj.totalClicks || 0),
             totalSubscribers: Number(obj.totalSubscribers || 0),
             totalUnsubscribers: Number(obj.totalUnsubscribers || 0),
+            failedConversions: Number(obj.failedConversions || obj.failedUploads || 0),
             netSubscribers: Number(obj.netSubscribers || 0),
             conversionRate: Number(obj.conversionRate || 0),
             clickThroughRate: Number(obj.clickThroughRate || 0),
@@ -256,6 +268,7 @@ const Analytics = () => {
             google.totalClicks === meta.totalClicks &&
             google.totalSubscribers === meta.totalSubscribers &&
             google.totalUnsubscribers === meta.totalUnsubscribers &&
+            google.failedConversions === meta.failedConversions &&
             google.totalSpend === meta.totalSpend &&
             google.conversionRate === meta.conversionRate &&
             google.clickThroughRate === meta.clickThroughRate;
@@ -369,6 +382,7 @@ const Analytics = () => {
                     const totalClicks = googleSummary.totalClicks + metaSummary.totalClicks;
                     const totalSubscribers = googleSummary.totalSubscribers + metaSummary.totalSubscribers;
                     const totalUnsubscribers = googleSummary.totalUnsubscribers + metaSummary.totalUnsubscribers;
+                    const failedConversions = googleSummary.failedConversions + metaSummary.failedConversions;
                     const totalSpend = googleSummary.totalSpend + metaSummary.totalSpend;
                     const conversionRate = totalClicks > 0
                         ? Number(((totalSubscribers / totalClicks) * 100).toFixed(2))
@@ -379,6 +393,7 @@ const Analytics = () => {
                         clicks: totalClicks,
                         subscribers: totalSubscribers,
                         unsubscribers: totalUnsubscribers,
+                        failedConversions,
                         conversionRate: conversionRate.toFixed(2),
                         adSpend: totalSpend,
                     });
@@ -486,6 +501,7 @@ const Analytics = () => {
         { title: 'Total Clicks', value: stats?.clicks?.toLocaleString() || 0 },
         { title: 'Subscriptions', value: stats?.subscribers?.toLocaleString() || 0 },
         { title: 'Unsubscriptions', value: stats?.unsubscribers?.toLocaleString() || 0, isNegative: true },
+        { title: 'Failed Uploads', value: stats?.failedConversions?.toLocaleString() || 0, isWarning: true },
         { title: 'Conversion Rate', value: `${stats?.conversionRate || 0}%` },
         { title: 'Total Ad Spend', value: `PKR ${(stats?.totalSpend ?? stats?.adSpend ?? 0).toLocaleString()}` },
     ];
@@ -633,7 +649,7 @@ const Analytics = () => {
                                     <Text style={{ color: '#475569', fontWeight: 600, fontSize: 'clamp(11px, 1.2vw, 13px)', display: 'block', marginBottom: '4px' }}>
                                         {stat.title}
                                     </Text>
-                                    <Title level={4} style={{ margin: 0, fontWeight: 800, color: stat.isNegative ? '#ef4444' : '#084b8a', fontSize: 'clamp(18px, 2vw, 24px)' }}>
+                                    <Title level={4} style={{ margin: 0, fontWeight: 800, color: stat.isNegative ? '#ef4444' : (stat.isWarning ? '#d97706' : '#084b8a'), fontSize: 'clamp(18px, 2vw, 24px)' }}>
                                         {stat.value}
                                     </Title>
                                 </Card>
@@ -653,6 +669,7 @@ const Analytics = () => {
                                     { label: 'Clicks', value: data.totalClicks ?? 0 },
                                     { label: 'Subscribers', value: data.totalSubscribers ?? 0 },
                                     { label: 'Unsubscribers', value: data.totalUnsubscribers ?? 0 },
+                                    { label: 'Failed Uploads', value: data.failedConversions ?? 0 },
                                     { label: 'Conv. Rate', value: `${data.conversionRate ?? 0}%` },
                                     { label: 'CTR', value: `${data.clickThroughRate ?? 0}%` },
                                     { label: 'Ad Spend', value: `PKR ${(data.totalSpend ?? 0).toLocaleString()}` },
@@ -775,6 +792,10 @@ const Analytics = () => {
                                         <linearGradient id="gradUnsubscribers" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%" stopColor="#ef4444" stopOpacity={0.35} />
                                             <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02} />
+                                        </linearGradient>
+                                        <linearGradient id="gradFailedConversions" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#d97706" stopOpacity={0.35} />
+                                            <stop offset="95%" stopColor="#d97706" stopOpacity={0.02} />
                                         </linearGradient>
                                         <linearGradient id="gradConvRate" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.35} />

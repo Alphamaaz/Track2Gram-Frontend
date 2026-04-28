@@ -161,6 +161,20 @@ const Projects = () => {
       render: (stats) => <Text style={{ color: '#ff4d4f', fontWeight: 'bold' }}>{stats?.unsubscribers || 0}</Text>,
     },
     {
+      title: 'Failed Uploads',
+      dataIndex: 'stats',
+      key: 'failedConversions',
+      align: 'center',
+      render: (stats) => {
+        const failed = Number(stats?.failedConversions || 0);
+        return (
+          <Text style={{ color: failed > 0 ? '#d97706' : '#64748b', fontWeight: failed > 0 ? 'bold' : 500 }}>
+            {failed}
+          </Text>
+        );
+      },
+    },
+    {
       title: 'Analytics',
       key: 'analytics',
       render: (_, record) => (
