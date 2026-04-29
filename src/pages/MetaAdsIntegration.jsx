@@ -10,13 +10,8 @@ const { Title, Text } = Typography;
 const META_EVENT_OPTIONS = [
     'Subscribe',
     'Lead',
-    'LeadInitiated',
     'SubscribeInitiated',
-    'InitiateCheckout',
-    'CompleteRegistration',
-    'Purchase',
-    'Contact',
-    'SubmitApplication',
+    'LeadInitiated',
 ];
 const MetaAdsIntegration = () => {
     const { message, modal } = App.useApp();
@@ -438,10 +433,11 @@ const MetaAdsIntegration = () => {
                                 <Form.Item
                                     label={<Text strong style={{ color: '#334155', fontSize: '14px' }}>Pixel Event Name</Text>}
                                     name="META_EVENT_NAME"
-                                    tooltip="Standard Meta event to fire (e.g., Lead, Subscribe, Purchase)"
+                                    tooltip="Choose the final event. CTA clicks fire the matching initiated event; confirmed joins fire Lead or Subscribe."
                                 >
-                                    <Input
-                                        placeholder="Enter event name (e.g. Lead)"
+                                    <Select
+                                        placeholder="Select event"
+                                        options={META_EVENT_OPTIONS.map(value => ({ value, label: value }))}
                                         size="large"
                                         className="premium-input-field"
                                         style={{ height: '50px' }}

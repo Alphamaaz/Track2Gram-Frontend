@@ -61,11 +61,6 @@ const TYPE_CONFIG = {
 const META_EVENTS = [
     'Subscribe',
     'Lead',
-    'InitiateCheckout',
-    'CompleteRegistration',
-    'Purchase',
-    'Contact',
-    'SubmitApplication',
     'SubscribeInitiated',
     'LeadInitiated',
 ];
