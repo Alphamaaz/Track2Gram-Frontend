@@ -9,6 +9,7 @@ import {
   ArrowLeftOutlined
 } from '@ant-design/icons'
 import logo from '../assets/tyy 1.svg'
+import { clearAuthToken } from '../utils/authToken'
 
 const { Header: AntHeader } = Layout
 
@@ -19,7 +20,7 @@ const Header = ({ collapsed, onToggle }) => {
   const returnUrl = localStorage.getItem('superAdminReturnUrl') || user.superAdminReturnUrl
 
   const handleReturnToSuperAdmin = () => {
-    localStorage.removeItem('token')
+    clearAuthToken()
     localStorage.removeItem('user')
     localStorage.removeItem('superAdminReturnUrl')
     window.location.href = returnUrl || 'http://localhost:5174'

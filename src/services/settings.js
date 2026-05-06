@@ -1,17 +1,22 @@
 import { API_BASE_URL } from '../config';
-import { handleAuthExpiry } from './session';
+import { forceLogout, handleAuthExpiry } from './session';
 import { getApiHeaders } from '../utils/apiHeaders';
+import { getAuthToken } from '../utils/authToken';
 
 /**
  * Common request handler to handle fetch responses and errors
  */
 const request = async (endpoint, options = {}) => {
     const url = `${API_BASE_URL}${endpoint}`;
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
+    if (!token) {
+        forceLogout('Missing session. Please login again.');
+        throw { message: 'Missing session. Please login again.' };
+    }
 
     const headers = {
         'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        'Authorization': `Bearer ${token}`,
         ...options.headers,
     };
     const finalHeaders = getApiHeaders(headers, url);

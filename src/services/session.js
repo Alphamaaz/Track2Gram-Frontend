@@ -1,3 +1,5 @@
+import { clearAuthToken } from '../utils/authToken';
+
 const PUBLIC_ROUTES = new Set([
     '/',
     '/login',
@@ -38,7 +40,7 @@ function shouldRedirectToLogin() {
 }
 
 export function forceLogout(reason = 'Session expired. Please login again.') {
-    localStorage.removeItem('token');
+    clearAuthToken();
     localStorage.removeItem('user');
     window.dispatchEvent(new CustomEvent('auth:expired', { detail: { reason } }));
 

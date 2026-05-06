@@ -17,6 +17,7 @@ import {
 import { API_BASE_URL } from '../config'
 import { useState, useEffect } from 'react'
 import { getApiHeaders } from '../utils/apiHeaders'
+import { clearAuthToken, getAuthToken } from '../utils/authToken'
 
 const { Sider } = Layout
 
@@ -27,7 +28,8 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
 
   const fetchSubscription = async () => {
     try {
-      const token = localStorage.getItem('token')
+      const token = getAuthToken()
+      if (!token) return
       const res = await fetch(`${API_BASE_URL}/settings/subscription/status`, {
         headers: getApiHeaders({ Authorization: `Bearer ${token}` }, `${API_BASE_URL}/settings/subscription/status`)
       })
@@ -48,7 +50,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
   const isAdminOrOwner = userRole === 'admin' || userRole === 'owner'
 
   const handleLogout = () => {
-    localStorage.removeItem('token')
+    clearAuthToken()
     localStorage.removeItem('user')
     sessionStorage.removeItem('auth_redirect_in_progress')
     navigate('/login', { replace: true })

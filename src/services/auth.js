@@ -1,13 +1,14 @@
 import { API_BASE_URL } from '../config';
 import { handleAuthExpiry } from './session';
 import { getApiHeaders } from '../utils/apiHeaders';
+import { getAuthToken } from '../utils/authToken';
 
 /**
  * Common request handler to handle fetch responses and errors
  */
 const request = async (endpoint, options = {}) => {
     const url = `${API_BASE_URL}${endpoint}`;
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
 
     const headers = {
         'Content-Type': 'application/json',

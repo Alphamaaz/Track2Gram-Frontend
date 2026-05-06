@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import loginImage from '../assets/login.png'
 import logo from '../assets/tyy 1.svg'
 import authService from '../services/auth'
+import { setAuthToken } from '../utils/authToken'
 import { useEffect, useState } from 'react'
 
 const { Title, Text } = Typography
@@ -25,7 +26,7 @@ export const Login = () => {
       })
 
       // Store the token and user info
-      localStorage.setItem('token', response.token)
+      setAuthToken(response.token)
       localStorage.setItem('user', JSON.stringify(response.user))
       sessionStorage.removeItem('auth_redirect_in_progress')
 

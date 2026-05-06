@@ -491,7 +491,7 @@ const TelegramIntegration = () => {
                             name="TELEGRAM_MANUAL_APPROVAL_REQUIRED"
                             valuePropName="checked"
                             initialValue={false}
-                            extra={<Text type="secondary" style={{ fontSize: '12px' }}>When enabled, users send a join request and conversions are tracked only after a channel admin approves them.</Text>}
+                            extra={<Text type="secondary" style={{ fontSize: '12px' }}>When enabled, users send a join request and conversion tracking starts as soon as the request is submitted.</Text>}
                             style={{ marginBottom: 0 }}
                         >
                             <Switch checkedChildren="Manual" unCheckedChildren="Auto" />

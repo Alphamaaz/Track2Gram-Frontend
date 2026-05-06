@@ -4,6 +4,7 @@ import { UserOutlined, MailOutlined, LogoutOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import authService from '../services/auth';
 import settingsService from '../services/settings';
+import { clearAuthToken } from '../utils/authToken';
 
 const formatPlanLabel = (value) => {
     if (value === 'starter') return 'Starter';
@@ -114,7 +115,7 @@ const ProfileModal = ({ visible, onCancel }) => {
 
     const handleLogout = () => {
         localStorage.removeItem('user');
-        localStorage.removeItem('token');
+        clearAuthToken();
         onCancel();
         navigate('/login');
     };

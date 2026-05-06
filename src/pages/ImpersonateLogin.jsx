@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Alert, Spin } from 'antd'
+import { setAuthToken } from '../utils/authToken'
 
 const ImpersonateLogin = () => {
   const navigate = useNavigate()
@@ -31,7 +32,7 @@ const ImpersonateLogin = () => {
       impersonated: true,
     }
 
-    localStorage.setItem('token', token)
+    setAuthToken(token)
     localStorage.setItem('user', JSON.stringify(impersonatedUser))
 
     if (impersonatedUser.superAdminReturnUrl) {
